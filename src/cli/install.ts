@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -12,22 +11,10 @@ const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
 const JSON_INDENT_SPACES = 2;
 const SEPARATOR_WIDTH = 50;
 
+declare const PKG_VERSION: string;
+
 function getPluginTag(): string {
-  try {
-    const require = createRequire(import.meta.url);
-    const pkg: unknown = require("../../package.json");
-    if (
-      typeof pkg === "object" &&
-      pkg !== null &&
-      "version" in pkg &&
-      typeof pkg.version === "string"
-    ) {
-      return pkg.version.includes("-dev.") ? "dev" : "latest";
-    }
-    return "latest";
-  } catch {
-    return "latest";
-  }
+  return typeof PKG_VERSION === "string" && PKG_VERSION.includes("-dev.") ? "dev" : "latest";
 }
 
 function getPluginName(): string {
