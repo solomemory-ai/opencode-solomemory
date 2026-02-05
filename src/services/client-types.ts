@@ -102,6 +102,22 @@ export type GetJobStatusResult =
   | { success: true; job: JobStatus }
   | { success: false; error: string };
 
+export interface ProjectInfo {
+  containerTag: string;
+  projectId: string;
+  repository?: string;
+  workspace?: string;
+}
+
+export interface ProjectsResponse {
+  projects: ProjectInfo[];
+  count: number;
+}
+
+export type ListProjectsResult =
+  | { success: true; projects: ProjectInfo[] }
+  | { success: false; error: string; projects: [] };
+
 // ── Type guards ────────────────────────────────────────────
 
 function isObject(data: unknown): data is Record<string, unknown> {
@@ -158,6 +174,11 @@ export function isJobStatusResponse(data: unknown): data is JobStatus {
     "progress" in data &&
     typeof data.progress === "number"
   );
+}
+
+export function isProjectsResponse(data: unknown): data is ProjectsResponse {
+  if (!isObject(data)) return false;
+  return "projects" in data && Array.isArray(data.projects) && "count" in data;
 }
 
 // ── Utilities ──────────────────────────────────────────────

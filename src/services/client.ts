@@ -7,6 +7,7 @@ import type {
   IngestConversationResult,
   IngestPayload,
   ListMemoriesResult,
+  ListProjectsResult,
   MetadataSearchOptions,
   ProfileResult,
   SearchMemoriesResult,
@@ -17,6 +18,7 @@ import {
   isJobStatusResponse,
   isListMemoriesResponse,
   isProfileResponse,
+  isProjectsResponse,
   isSearchResponse,
   listFailure,
   searchFailure,
@@ -244,6 +246,35 @@ export class SolomemoryClient {
       const msg = toErrorMessage(error);
       log("searchByMetadata: error", { error: msg });
       return searchFailure(msg);
+    }
+  }
+
+  async listGlobalMemories(limit = DEFAULT_PAGE_SIZE): Promise<ListMemoriesResult> {
+    log("listGlobalMemories: start", { limit });
+    try {
+      const body = { limit, order: "desc", sort: "createdAt" };
+      const result = await post("/memories/list", body);
+      if (!isListMemoriesResponse(result)) throw new Error("Invalid list response format");
+      log("listGlobalMemories: success", { count: result.memories.length });
+      return { success: true as const, ...result };
+    } catch (error) {
+      const msg = toErrorMessage(error);
+      log("listGlobalMemories: error", { error: msg });
+      return listFailure(msg);
+    }
+  }
+
+  async listProjects(): Promise<ListProjectsResult> {
+    log("listProjects: start");
+    try {
+      const result = await get("/projects");
+      if (!isProjectsResponse(result)) throw new Error("Invalid projects response format");
+      log("listProjects: success", { count: result.projects.length });
+      return { success: true as const, projects: result.projects };
+    } catch (error) {
+      const msg = toErrorMessage(error);
+      log("listProjects: error", { error: msg });
+      return { success: false as const, error: msg, projects: [] };
     }
   }
 

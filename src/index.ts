@@ -252,10 +252,12 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
       solomemory: tool({
         description: TOOL_DESCRIPTION,
         args: {
-          mode: tool.schema.enum(["search", "profile", "list", "help"]).optional(),
+          mode: tool.schema.enum(["search", "profile", "list", "projects", "help"]).optional(),
           query: tool.schema.string().optional(),
-          scope: tool.schema.enum(["user", "project"]).optional(),
+          scope: tool.schema.enum(["user", "project", "global"]).optional(),
           limit: tool.schema.number().optional(),
+          path: tool.schema.string().optional(),
+          containerTag: tool.schema.string().optional(),
         },
         execute(args: ToolArgs) {
           return executeTool(args, projectScopeTag);

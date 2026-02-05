@@ -1,6 +1,6 @@
 export type Result<T, E = string> = { success: true; data: T } | { success: false; error: E };
 
-export type MemoryScope = "user" | "project";
+export type MemoryScope = "user" | "project" | "global";
 
 export type MemoryType =
   | "project-config"
