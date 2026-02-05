@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -8,9 +9,30 @@ import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.j
 
 const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
-const PLUGIN_NAME = "oc-solomemory@latest";
 const JSON_INDENT_SPACES = 2;
 const SEPARATOR_WIDTH = 50;
+
+function getPluginTag(): string {
+  try {
+    const require = createRequire(import.meta.url);
+    const pkg: unknown = require("../../package.json");
+    if (
+      typeof pkg === "object" &&
+      pkg !== null &&
+      "version" in pkg &&
+      typeof pkg.version === "string"
+    ) {
+      return pkg.version.includes("-dev.") ? "dev" : "latest";
+    }
+    return "latest";
+  } catch {
+    return "latest";
+  }
+}
+
+function getPluginName(): string {
+  return `oc-solomemory@${getPluginTag()}`;
+}
 
 interface OpencodeConfig {
   plugin?: string[];
@@ -48,8 +70,8 @@ function insertPluginIntoExistingArray(content: string): string {
   const trimmed = middle.trim();
   const replacement =
     trimmed === ""
-      ? `${start}\n    "${PLUGIN_NAME}"\n  ${end}`
-      : `${start}${middle.trimEnd()},\n    "${PLUGIN_NAME}"\n  ${end}`;
+      ? `${start}\n    "${getPluginName()}"\n  ${end}`
+      : `${start}${middle.trimEnd()},\n    "${getPluginName()}"\n  ${end}`;
 
   return content.replace(fullMatch, replacement);
 }
@@ -58,7 +80,7 @@ function writePluginToJsonc(configPath: string, content: string): void {
   if (content.includes('"plugin"')) {
     writeFileSync(configPath, insertPluginIntoExistingArray(content));
   } else {
-    const updated = content.replace(/^(\s*\{)/, `$1\n  "plugin": ["${PLUGIN_NAME}"],`);
+    const updated = content.replace(/^(\s*\{)/, `$1\n  "plugin": ["${getPluginName()}"],`);
     writeFileSync(configPath, updated);
   }
 }
@@ -70,10 +92,14 @@ function updateConfigWithPlugin(configPath: string, content: string): void {
     const config = parseOpencodeConfig(content);
     if (config === null) return;
     const plugins = config.plugin ?? [];
-    plugins.push(PLUGIN_NAME);
+    plugins.push(getPluginName());
     config.plugin = plugins;
     writeFileSync(configPath, JSON.stringify(config, null, JSON_INDENT_SPACES));
   }
+}
+
+function replaceExistingPlugin(content: string): string {
+  return content.replaceAll(/"oc-solomemory@[^"]*"/g, `"${getPluginName()}"`);
 }
 
 function addPluginToConfig(configPath: string): boolean {
@@ -81,7 +107,9 @@ function addPluginToConfig(configPath: string): boolean {
     const content = readFileSync(configPath, "utf8");
 
     if (content.includes("oc-solomemory")) {
-      console.log("✓ Plugin already registered in config");
+      const updated = replaceExistingPlugin(content);
+      writeFileSync(configPath, updated);
+      console.log(`✓ Plugin updated to ${getPluginName()}`);
       return true;
     }
 
@@ -117,7 +145,7 @@ function createNewConfig(): void {
   mkdirSync(OPENCODE_CONFIG_DIR, { recursive: true });
 
   const config = `{
-  "plugin": ["${PLUGIN_NAME}"]
+  "plugin": ["${getPluginName()}"]
 }
 `;
 
