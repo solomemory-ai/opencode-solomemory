@@ -120,6 +120,7 @@ async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]
 
   const duration = Date.now() - start;
   log("chat.message: context injected", { duration, contextLength: memoryContext.length });
+  log("chat.message: injected content", { context: memoryContext });
 }
 
 interface ChatMessageInput {

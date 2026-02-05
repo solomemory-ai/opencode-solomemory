@@ -105,6 +105,7 @@ export class SolomemoryClient {
       const result = await get(qs ? "/profile?" + qs : "/profile");
       if (!isProfileResponse(result)) throw new Error("Invalid profile response format");
       log("getProfile: success", { hasProfile: result.profile !== null });
+      log("getProfile: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
@@ -125,6 +126,7 @@ export class SolomemoryClient {
       });
       if (!isSearchResponse(result)) throw new Error("Invalid search response format");
       log("searchUserMemories: success", { count: result.results.length });
+      log("searchUserMemories: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
@@ -185,6 +187,7 @@ export class SolomemoryClient {
       const result = await post("/memories/list", body);
       if (!isListMemoriesResponse(result)) throw new Error("Invalid list response format");
       log("listMemories: success", { count: result.memories.length });
+      log("listMemories: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
