@@ -1,0 +1,70 @@
+import type { Part } from "@opencode-ai/sdk";
+
+export interface MessageInfo {
+  id: string;
+  role: string;
+  sessionID: string;
+  providerID?: string;
+  modelID?: string;
+  tokens?: {
+    input: number;
+    output: number;
+    cache: { read: number; write: number };
+  };
+  summary?: boolean;
+  finish?: boolean | string;
+  time?: { created: number; completed?: number };
+}
+
+export interface SessionMessage {
+  info: MessageInfo;
+  parts: Part[];
+}
+
+export function extractTextFromParts(parts: Part[]): string {
+  return parts
+    .filter((p): p is Part & { type: "text"; text: string } => p.type === "text" && "text" in p)
+    .map((p) => p.text)
+    .join("\n");
+}
+
+export function extractToolInfoFromParts(parts: Part[]): Array<{ tool: string; state: string }> {
+  return parts
+    .filter((p): p is Part & { type: "tool"; tool: string } => p.type === "tool" && "tool" in p)
+    .map((p) => ({
+      tool: (p as Part & { type: "tool"; tool: string; state?: { status?: string } }).tool,
+      state: String(
+        (p as Part & { type: "tool"; state?: { status?: string } }).state?.status ?? "unknown"
+      ),
+    }));
+}
+
+export function extractContentFromParts(parts: Part[]): string {
+  const textContent = extractTextFromParts(parts);
+  const toolParts = extractToolInfoFromParts(parts);
+
+  if (toolParts.length === 0) return textContent;
+
+  const toolSummary = toolParts
+    .map((t) => `[tool: ${t.tool} (${t.state})]`)
+    .join(", ");
+
+  return textContent ? `${textContent}\n${toolSummary}` : toolSummary;
+}
+
+export function hasSyntheticPart(parts: Part[]): boolean {
+  return parts.some((p) => "synthetic" in p && p.synthetic);
+}
+
+export function isNonSyntheticMessage(msg: SessionMessage): boolean {
+  return !hasSyntheticPart(msg.parts);
+}
+
+/** @deprecated Use isNonSyntheticMessage instead */
+export function isUserOrAssistantMessage(msg: SessionMessage): boolean {
+  return !hasSyntheticPart(msg.parts) && (msg.info.role === "user" || msg.info.role === "assistant");
+}
+
+export function filterValidMessages(messages: SessionMessage[]): SessionMessage[] {
+  return messages.filter(isNonSyntheticMessage);
+}
