@@ -25,7 +25,10 @@ Optional. Create `~/.config/opencode/solomemory.jsonc`:
 {
   "apiKey": "your-api-key",
   "maxMemories": 5,
-  "similarityThreshold": 0.6,
+  "maxProjectMemories": 10,
+  "maxProfileItems": 5,
+  "injectProfile": true,
+  "autoSyncConversations": true,
 }
 ```
 

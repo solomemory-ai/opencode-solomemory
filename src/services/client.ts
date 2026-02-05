@@ -68,7 +68,6 @@ function buildSearchBody(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     q: query,
-    threshold: CONFIG.similarityThreshold,
     limit: options?.limit ?? CONFIG.maxMemories,
   };
   const filters = options?.metadataFilters;
@@ -122,7 +121,6 @@ export class SolomemoryClient {
     try {
       const result = await post("/search/user", {
         q: query,
-        threshold: CONFIG.similarityThreshold,
         limit: options?.limit ?? CONFIG.maxMemories,
       });
       if (!isSearchResponse(result)) throw new Error("Invalid search response format");
@@ -234,7 +232,6 @@ export class SolomemoryClient {
         q: options.query,
         containerTags: options.containerTags,
         metadataFilters: options.metadataFilters,
-        threshold: CONFIG.similarityThreshold,
         limit: options.limit ?? CONFIG.maxMemories,
       });
       if (!isSearchResponse(result)) throw new Error("Invalid search response format");

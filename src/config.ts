@@ -16,7 +16,6 @@ const DEFAULT_API_URL = "https://api.solomemory.com";
 interface SolomemoryConfig {
   apiKey?: string;
   apiUrl?: string;
-  similarityThreshold?: number;
   maxMemories?: number;
   maxProjectMemories?: number;
   maxProfileItems?: number;
@@ -28,7 +27,6 @@ interface SolomemoryConfig {
 }
 
 const DEFAULTS = {
-  similarityThreshold: 0.6,
   maxMemories: 5,
   maxProjectMemories: 10,
   maxProfileItems: 5,
@@ -82,7 +80,6 @@ function resolveApiUrl(fileConfig: SolomemoryConfig): string {
 
 function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
   return {
-    similarityThreshold: fileConfig.similarityThreshold ?? DEFAULTS.similarityThreshold,
     maxMemories: fileConfig.maxMemories ?? DEFAULTS.maxMemories,
     maxProjectMemories: fileConfig.maxProjectMemories ?? DEFAULTS.maxProjectMemories,
     maxProfileItems: fileConfig.maxProfileItems ?? DEFAULTS.maxProfileItems,
@@ -119,7 +116,6 @@ export function isConfigured(): boolean {
 }
 
 export interface RuntimeConfig {
-  readonly similarityThreshold: number;
   readonly maxMemories: number;
   readonly maxProjectMemories: number;
   readonly maxProfileItems: number;
@@ -140,7 +136,6 @@ export function getConfig(): RuntimeConfig {
 
 function isRuntimeConfigKey(prop: string): prop is keyof RuntimeConfig {
   const validKeys = [
-    "similarityThreshold",
     "maxMemories",
     "maxProjectMemories",
     "maxProfileItems",
@@ -163,7 +158,6 @@ const configHandler: ProxyHandler<RuntimeConfig> = {
 };
 
 const emptyConfig: RuntimeConfig = {
-  similarityThreshold: 0,
   maxMemories: 0,
   maxProjectMemories: 0,
   maxProfileItems: 0,
