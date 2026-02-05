@@ -45,13 +45,10 @@ jobs:
       - name: Publish to npm
         run: npm publish --provenance --access public --tag dev
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          registry-url: https://npm.pkg.github.com
-
       - name: Publish to GitHub Packages
-        run: npm publish --tag dev
+        run: |
+          jq --arg name "@solomemory-ai/oc-solomemory" '.name = $name' package.json > tmp.json && mv tmp.json package.json
+          npm publish --tag dev --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -77,13 +74,10 @@ jobs:
       - name: Publish to npm
         run: npm publish --provenance --access public
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          registry-url: https://npm.pkg.github.com
-
       - name: Publish to GitHub Packages
-        run: npm publish
+        run: |
+          jq --arg name "@solomemory-ai/oc-solomemory" '.name = $name' package.json > tmp.json && mv tmp.json package.json
+          npm publish --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
