@@ -33,4 +33,4 @@ Full options: [docs/CONFIG.md](docs/CONFIG.md)
 
 ## License
 
-MIT
+[AGPL-3.0](LICENSE)
