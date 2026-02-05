@@ -47,8 +47,6 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - run: bun run check
-
       - name: Set dev version
         run: |
           BASE_VERSION=$(jq -r .version package.json)
@@ -56,6 +54,8 @@ jobs:
           DEV_VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
           jq --arg v "$DEV_VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json
           echo "DEV_VERSION=$DEV_VERSION" >> "$GITHUB_ENV"
+
+      - run: bun run build
 
       - uses: actions/setup-node@v4
         with:
