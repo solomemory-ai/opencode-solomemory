@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/solomemory-ai/.github/main/brand/logo-mark-black-transparent.png" alt="Solo Memory" width="120">
 </picture>
 
-# oc-solomemory
+# opencode-solomemory
 
 [![npm version](https://img.shields.io/npm/v/oc-solomemory?color=blue&label=stable)](https://www.npmjs.com/package/oc-solomemory)
 [![npm dev](https://img.shields.io/npm/v/oc-solomemory/dev?color=orange&label=dev)](https://www.npmjs.com/package/oc-solomemory?activeTab=versions)
