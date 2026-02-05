@@ -73,6 +73,7 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --provenance --access public
+        continue-on-error: true
 
       - name: Publish to GitHub Packages
         run: |
