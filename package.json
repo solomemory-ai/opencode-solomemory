@@ -1,6 +1,6 @@
 {
   "name": "oc-solomemory",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Persistent memory plugin for OpenCode — your AI agent remembers across sessions and projects",
   "type": "module",
   "main": "dist/index.js",
