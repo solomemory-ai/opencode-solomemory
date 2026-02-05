@@ -17,6 +17,21 @@ declare const PKG_VERSION: string;
 const CONTEXT_PREVIEW_LENGTH = 100;
 
 const injectedSessions = new Set<string>();
+const subagentSessions = new Set<string>();
+
+async function isSubagentSession(ctx: PluginInput, sessionID: string): Promise<boolean> {
+  if (subagentSessions.has(sessionID)) return true;
+
+  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
+
+  if (sessionInfo.data?.parentID) {
+    subagentSessions.add(sessionID);
+    log("chat.message: skipping subagent session", { sessionID });
+    return true;
+  }
+
+  return false;
+}
 
 function extractUserMessage(parts: Part[]): string | null {
   const textParts = parts.filter(
@@ -95,11 +110,20 @@ async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]
   log("chat.message: context injected", { duration, contextLength: memoryContext.length });
 }
 
+interface ChatMessageInput {
+  readonly ctx: PluginInput;
+  readonly sessionID: string;
+  readonly projectScopeTag: string;
+}
+
 async function handleChatMessage(
-  sessionID: string,
+  input: ChatMessageInput,
   output: { message: { id: string }; parts: Part[] },
-  projectScopeTag: string,
 ): Promise<void> {
+  const { ctx, sessionID, projectScopeTag } = input;
+
+  if (subagentSessions.has(sessionID)) return;
+
   const userMessage = extractUserMessage(output.parts);
   if (userMessage === null) return;
 
@@ -109,6 +133,8 @@ async function handleChatMessage(
   });
 
   if (!injectedSessions.has(sessionID)) {
+    if (await isSubagentSession(ctx, sessionID)) return;
+
     injectedSessions.add(sessionID);
     await fetchAndInjectContext(
       { sessionID, messageID: output.message.id, userMessage, projectScopeTag },
@@ -127,6 +153,7 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
   if (event.type === "session.deleted") {
     const sessionId = event.properties.info.id;
     injectedSessions.delete(sessionId);
+    subagentSessions.delete(sessionId);
     sessionSyncState.delete(sessionId);
     log("event: cleaned up session state", { sessionID: sessionId });
   }
@@ -182,7 +209,7 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
       if (!isConfigured()) return;
 
       try {
-        await handleChatMessage(input.sessionID, output, projectScopeTag);
+        await handleChatMessage({ ctx, sessionID: input.sessionID, projectScopeTag }, output);
       } catch (error) {
         log("chat.message: ERROR", { error: String(error) });
       }

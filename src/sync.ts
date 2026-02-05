@@ -61,6 +61,12 @@ function initSyncState(sessionID: string, allMessages: unknown[]): ConversationS
   return syncState;
 }
 
+const NOISE_CONTENT_PREFIXES = ["\u25A3"];
+
+function isNoiseContent(content: string): boolean {
+  return NOISE_CONTENT_PREFIXES.some((prefix) => content.startsWith(prefix));
+}
+
 function extractValidMessages(allMessages: unknown[], startIndex: number): ConversationMessage[] {
   const newMessages = allMessages.slice(startIndex + 1);
 
@@ -70,7 +76,8 @@ function extractValidMessages(allMessages: unknown[], startIndex: number): Conve
       role: msg.info.role,
       content: extractTextFromParts(msg.parts),
     }))
-    .filter((m) => m.content.trim().length > 0);
+    .filter((m) => m.content.trim().length > 0)
+    .filter((m) => !isNoiseContent(m.content));
 }
 
 interface MetadataInput {
@@ -181,6 +188,13 @@ async function ingestAndLogResult(params: IngestParams): Promise<void> {
 export async function handleSessionIdle(input: SessionIdleInput): Promise<void> {
   const { sessionID, ctx, directory, tags } = input;
 
+  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
+
+  if (sessionInfo.data?.parentID) {
+    log("event: skipping subagent session sync", { sessionID });
+    return;
+  }
+
   const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
   const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
 
@@ -189,7 +203,6 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
     return;
   }
 
-  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
   const conversationTags = getConversationTags(tags, sessionID, directory);
   const metadata = buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length);
 
