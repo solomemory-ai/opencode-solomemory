@@ -3,11 +3,7 @@ import type { PluginInput } from "@opencode-ai/plugin";
 import { CONFIG } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import { log } from "./services/logger.js";
-import {
-  extractTextFromParts,
-  getNonSyntheticParts,
-  type SessionMessage,
-} from "./services/messages.js";
+import { extractTextFromParts, type SessionMessage } from "./services/messages.js";
 import type { Tags } from "./services/tags.js";
 import {
   detectLanguage,
@@ -45,11 +41,7 @@ function isSessionMessage(value: unknown): value is SessionMessage {
 function findLastUserMessageIndex(messages: unknown[]): number {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (
-      isSessionMessage(msg) &&
-      msg.info.role === "user" &&
-      getNonSyntheticParts(msg.parts).length > 0
-    ) {
+    if (isSessionMessage(msg) && msg.info.role === "user") {
       return i;
     }
   }
@@ -80,7 +72,7 @@ function extractValidMessages(allMessages: unknown[], startIndex: number): Conve
     .filter((msg) => msg.info.summary !== true)
     .map((msg) => ({
       role: msg.info.role,
-      content: extractTextFromParts(getNonSyntheticParts(msg.parts)),
+      content: extractTextFromParts(msg.parts),
     }))
     .filter((m) => m.content.trim().length > 0)
     .filter((m) => !isNoiseContent(m.content));
