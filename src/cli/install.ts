@@ -1,11 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import type { Interface as ReadlineInterface } from "node:readline";
 
 import { getCredentialsDir, saveCredentials } from "../services/auth.js";
 import { stripJsoncComments } from "../services/jsonc.js";
-import { confirm, createReadline } from "./prompt.js";
 import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.js";
 
 const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
@@ -114,7 +112,7 @@ function findOpencodeConfig(): string | null {
   return null;
 }
 
-function createNewConfig(): boolean {
+function createNewConfig(): void {
   const configPath = path.join(OPENCODE_CONFIG_DIR, "opencode.jsonc");
   mkdirSync(OPENCODE_CONFIG_DIR, { recursive: true });
 
@@ -125,10 +123,9 @@ function createNewConfig(): boolean {
 
   writeFileSync(configPath, config);
   console.log(`✓ Created ${configPath}`);
-  return true;
 }
 
-function createCommands(): boolean {
+function createCommands(): void {
   mkdirSync(OPENCODE_COMMAND_DIR, { recursive: true });
 
   const initPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-init.md");
@@ -138,77 +135,54 @@ function createCommands(): boolean {
   const loginPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-login.md");
   writeFileSync(loginPath, SOLOMEMORY_LOGIN_COMMAND);
   console.log(`✓ Created /solomemory-login command`);
-
-  return true;
 }
 
-async function stepRegisterPlugin(rl: ReadlineInterface | null): Promise<void> {
+function stepRegisterPlugin(): void {
   console.log("Step 1: Register plugin in OpenCode config");
   const configPath = findOpencodeConfig();
 
-  if (configPath !== null) {
-    const shouldModify = rl === null || (await confirm(rl, `Add plugin to ${configPath}?`));
-    if (shouldModify) {
-      addPluginToConfig(configPath);
-    } else {
-      console.log("Skipped.");
-    }
-    return;
-  }
-
-  const shouldCreate = rl === null || (await confirm(rl, "No OpenCode config found. Create one?"));
-  if (shouldCreate) {
+  if (configPath === null) {
     createNewConfig();
   } else {
-    console.log("Skipped.");
+    addPluginToConfig(configPath);
   }
 }
 
-async function stepCreateCommands(rl: ReadlineInterface | null): Promise<void> {
+function stepCreateCommands(): void {
   console.log("\nStep 2: Create /solomemory-init and /solomemory-login commands");
-  const shouldCreate = rl === null || (await confirm(rl, "Add solomemory commands?"));
-  if (shouldCreate) {
-    createCommands();
-  } else {
-    console.log("Skipped.");
-  }
+  createCommands();
 }
 
-interface InstallOptions {
-  readonly tui: boolean;
-  readonly apiKey: string | undefined;
+function printApiKeyRequired(): number {
+  console.error("✗ API key is required.\n");
+  console.error("Usage:");
+  console.error("  npx oc-solomemory@latest install <api-key>");
+  console.error("  npx oc-solomemory@latest install --api-key=<key>\n");
+  console.error("Get your API key at https://solomemory.com");
+  return 1;
 }
 
-function stepConfigureApiKey(apiKey: string | undefined): number {
-  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
-  console.log("\n🔑 Final step: Configure API key\n");
-
-  if (apiKey === undefined) {
-    console.error("✗ API key is required.\n");
-    console.error("Usage:");
-    console.error("  npx oc-solomemory@latest install <api-key>");
-    console.error("  npx oc-solomemory@latest install --api-key=<key>\n");
-    console.error("Get your API key at https://solomemory.com");
-    return 1;
-  }
-
+function saveApiKey(apiKey: string): void {
   saveCredentials(apiKey);
   console.log(`✓ API key saved to ${getCredentialsDir()}`);
   console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
+}
+
+function runInstall(apiKey: string): number {
+  console.log("\n🧠 oc-solomemory installer\n");
+
+  stepRegisterPlugin();
+  stepCreateCommands();
+
+  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
+  console.log("\n🔑 Final step: Configure API key\n");
+  saveApiKey(apiKey);
   return 0;
 }
 
-export async function install(options: InstallOptions): Promise<number> {
-  console.log("\n🧠 oc-solomemory installer\n");
-
-  const rl = options.tui ? createReadline() : null;
-
-  await stepRegisterPlugin(rl);
-  await stepCreateCommands(rl);
-
-  if (rl !== null) {
-    rl.close();
+export function install(apiKey: string | undefined): number {
+  if (typeof apiKey === "string") {
+    return runInstall(apiKey);
   }
-
-  return stepConfigureApiKey(options.apiKey);
+  return printApiKeyRequired();
 }

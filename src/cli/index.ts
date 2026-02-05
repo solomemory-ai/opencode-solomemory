@@ -8,9 +8,6 @@ Usage:
   npx oc-solomemory@latest install <api-key>
   npx oc-solomemory@latest install --api-key=<key>
 
-Options:
-  --no-tui   Non-interactive mode (for LLM agents)
-
 Get your API key at https://solomemory.com
 `);
 }
@@ -27,23 +24,17 @@ function parseApiKey(args: string[]): string | undefined {
   return positional;
 }
 
-function handleInstallCommand(args: string[]): Promise<number> {
-  const noTui = args.includes("--no-tui");
-  const apiKey = parseApiKey(args);
-  return install({ tui: !noTui, apiKey });
-}
-
-function handleCommand(command: string, args: string[]): Promise<number> {
+function handleCommand(command: string, args: string[]): number {
   if (command === "install") {
-    return handleInstallCommand(args.slice(1));
+    return install(parseApiKey(args.slice(1)));
   }
 
   console.error(`Unknown command: ${command}`);
   printHelp();
-  return Promise.resolve(1);
+  return 1;
 }
 
-export async function main(): Promise<void> {
+export function main(): void {
   const args = process.argv.slice(2);
   const command = args[0];
 
@@ -56,6 +47,6 @@ export async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const exitCode = await handleCommand(command, args);
+  const exitCode = handleCommand(command, args);
   process.exit(exitCode);
 }
