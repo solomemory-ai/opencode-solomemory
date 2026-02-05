@@ -3,7 +3,6 @@ name: Publish
 on:
   push:
     branches: [v1.0]
-    tags: ["v*"]
 
 permissions:
   contents: write
@@ -11,12 +10,33 @@ permissions:
   id-token: write
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      is-release: ${{ steps.detect.outputs.is-release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release tag
+        id: detect
+        run: |
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "is-release=true" >> "$GITHUB_OUTPUT"
+            echo "Release commit detected"
+          else
+            echo "is-release=false" >> "$GITHUB_OUTPUT"
+            echo "Dev commit"
+          fi
+
   dev:
-    if: github.ref_type == 'branch'
+    needs: check
+    if: needs.check.outputs.is-release == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,10 +81,17 @@ jobs:
           prerelease: true
 
   release:
-    if: github.ref_type == 'tag'
+    needs: check
+    if: needs.check.outputs.is-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get release tag
+        id: tag
+        run: echo "name=$(git tag --points-at HEAD | grep '^v')" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -93,4 +120,5 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.name }}
           generate_release_notes: true
