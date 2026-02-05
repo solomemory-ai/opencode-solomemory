@@ -12,6 +12,8 @@ import { handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
 import type { Memory } from "./types/index.js";
 
+declare const PKG_VERSION: string;
+
 const CONTEXT_PREVIEW_LENGTH = 100;
 
 const injectedSessions = new Set<string>();
@@ -155,7 +157,13 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
   const tags = getTags(directory);
   const projectScopeTag = tags.repository ?? tags.project;
   const pluginContext: PluginContext = { ctx, directory, tags };
-  log("Plugin init", { directory, tags, projectScopeTag, configured: isConfigured() });
+  const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
+  log(`oc-solomemory v${version}`, {
+    directory,
+    tags,
+    projectScopeTag,
+    configured: isConfigured(),
+  });
 
   if (!isConfigured()) {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");

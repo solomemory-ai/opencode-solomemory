@@ -9,7 +9,7 @@
     "oc-solomemory": "./dist/cli.js"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node && bun build ./src/cli.ts --outfile ./dist/cli.js --target node --define \"PKG_VERSION='$(node -p \"require('./package.json').version\")'\" && tsc --emitDeclarationOnly",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --define \"PKG_VERSION='$(node -p \"require('./package.json').version\")'\" && bun build ./src/cli.ts --outfile ./dist/cli.js --target node --define \"PKG_VERSION='$(node -p \"require('./package.json').version\")'\" && tsc --emitDeclarationOnly",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "prepare": "husky",
