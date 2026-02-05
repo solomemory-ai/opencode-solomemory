@@ -9,7 +9,7 @@ import { log } from "./services/logger.js";
 import type { Tags } from "./services/tags.js";
 import { getTags } from "./services/tags.js";
 import { subagentSessions } from "./state.js";
-import { handleSessionIdle, sessionSyncState } from "./sync.js";
+import { handleSessionCompacted, handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
 import type { Memory } from "./types/index.js";
 
@@ -172,6 +172,11 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
     subagentSessions.delete(sessionId);
     sessionSyncState.delete(sessionId);
     log("event: cleaned up session state", { sessionID: sessionId });
+  }
+
+  if (event.type === "session.compacted") {
+    await handleSessionCompacted(context.ctx, event.properties.sessionID);
+    return;
   }
 
   if (event.type !== "session.idle" || !isConfigured() || !CONFIG.autoSyncConversations) {

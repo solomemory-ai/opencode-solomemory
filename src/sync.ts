@@ -77,6 +77,7 @@ function extractValidMessages(allMessages: unknown[], startIndex: number): Conve
 
   return newMessages
     .filter((msg): msg is SessionMessage => isSessionMessage(msg))
+    .filter((msg) => msg.info.summary !== true)
     .map((msg) => ({
       role: msg.info.role,
       content: extractTextFromParts(getNonSyntheticParts(msg.parts)),
@@ -188,6 +189,15 @@ async function ingestAndLogResult(params: IngestParams): Promise<void> {
       error: result.error,
     });
   }
+}
+
+export async function handleSessionCompacted(ctx: PluginInput, sessionID: string): Promise<void> {
+  const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
+  syncState.lastSyncedMessageIndex = allMessages.length - 1;
+  log("event: session compacted, sync state reset", {
+    sessionID,
+    totalMessages: allMessages.length,
+  });
 }
 
 export async function handleSessionIdle(input: SessionIdleInput): Promise<void> {
