@@ -52,6 +52,14 @@ jobs:
           echo "@solomemory-ai:registry=https://npm.pkg.github.com" >> .npmrc
           npm publish --tag dev
 
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ github.sha }}
+          name: "Dev: ${{ env.DEV_VERSION }}"
+          body: "Dev build from commit ${{ github.sha }}"
+          prerelease: true
+
   release:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
