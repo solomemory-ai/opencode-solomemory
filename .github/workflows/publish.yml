@@ -48,9 +48,9 @@ jobs:
       - name: Publish to GitHub Packages
         run: |
           jq --arg name "@solomemory-ai/oc-solomemory" '.name = $name' package.json > tmp.json && mv tmp.json package.json
-          npm publish --tag dev --registry https://npm.pkg.github.com
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          echo "@solomemory-ai:registry=https://npm.pkg.github.com" >> .npmrc
+          npm publish --tag dev
 
   release:
     if: github.ref_type == 'tag'
@@ -77,9 +77,9 @@ jobs:
       - name: Publish to GitHub Packages
         run: |
           jq --arg name "@solomemory-ai/oc-solomemory" '.name = $name' package.json > tmp.json && mv tmp.json package.json
-          npm publish --registry https://npm.pkg.github.com
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          echo "@solomemory-ai:registry=https://npm.pkg.github.com" >> .npmrc
+          npm publish
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
