@@ -62,8 +62,16 @@ export function extractContentFromParts(parts: Part[]): string {
   return textContent ? `${textContent}\n${toolSummary}` : toolSummary;
 }
 
+function isSyntheticPart(p: Part): boolean {
+  return "synthetic" in p && p.synthetic === true;
+}
+
 export function hasSyntheticPart(parts: Part[]): boolean {
-  return parts.some((p) => "synthetic" in p && p.synthetic === true);
+  return parts.some((p) => isSyntheticPart(p));
+}
+
+export function getNonSyntheticParts(parts: Part[]): Part[] {
+  return parts.filter((p) => !isSyntheticPart(p));
 }
 
 export function isNonSyntheticMessage(msg: SessionMessage): boolean {

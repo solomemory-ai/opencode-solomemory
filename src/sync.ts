@@ -5,7 +5,7 @@ import { solomemoryClient } from "./services/client.js";
 import { log } from "./services/logger.js";
 import {
   extractTextFromParts,
-  isNonSyntheticMessage,
+  getNonSyntheticParts,
   type SessionMessage,
 } from "./services/messages.js";
 import type { Tags } from "./services/tags.js";
@@ -45,7 +45,11 @@ function isSessionMessage(value: unknown): value is SessionMessage {
 function findLastUserMessageIndex(messages: unknown[]): number {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (isSessionMessage(msg) && msg.info.role === "user" && isNonSyntheticMessage(msg)) {
+    if (
+      isSessionMessage(msg) &&
+      msg.info.role === "user" &&
+      getNonSyntheticParts(msg.parts).length > 0
+    ) {
       return i;
     }
   }
@@ -72,10 +76,10 @@ function extractValidMessages(allMessages: unknown[], startIndex: number): Conve
   const newMessages = allMessages.slice(startIndex + 1);
 
   return newMessages
-    .filter((msg): msg is SessionMessage => isSessionMessage(msg) && isNonSyntheticMessage(msg))
+    .filter((msg): msg is SessionMessage => isSessionMessage(msg))
     .map((msg) => ({
       role: msg.info.role,
-      content: extractTextFromParts(msg.parts),
+      content: extractTextFromParts(getNonSyntheticParts(msg.parts)),
     }))
     .filter((m) => m.content.trim().length > 0)
     .filter((m) => !isNoiseContent(m.content));
