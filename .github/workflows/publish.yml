@@ -10,8 +10,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: publish
-  cancel-in-progress: true
+  group: publish-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   check:
