@@ -1,7 +1,7 @@
 {
   "name": "opencode-solomemory",
   "version": "1.0.0",
-  "description": "OpenCode plugin that gives coding agents persistent memory using Solo Memory",
+  "description": "Persistent memory plugin for OpenCode — your AI agent remembers across sessions and projects",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,11 +21,13 @@
   },
   "keywords": [
     "opencode",
-    "plugin",
+    "opencode-plugin",
     "solomemory",
-    "memory",
+    "persistent-memory",
     "ai",
-    "coding-agent"
+    "coding-agent",
+    "typescript",
+    "bun"
   ],
   "author": "Solo Memory",
   "license": "AGPL-3.0",

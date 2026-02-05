@@ -1,8 +1,8 @@
 # opencode-solomemory
 
-OpenCode plugin for persistent memory using [Solo Memory](https://solomemory.com).
+Persistent memory plugin for [OpenCode](https://opencode.ai) — powered by [Solo Memory](https://solomemory.com).
 
-Your agent remembers what you tell it - across sessions, across projects.
+Your AI agent remembers what you tell it — across sessions, across projects.
 
 ## Install
 
