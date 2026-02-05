@@ -1,12 +1,12 @@
 {
-  "name": "opencode-solomemory",
+  "name": "oc-solomemory",
   "version": "1.0.0",
   "description": "Persistent memory plugin for OpenCode — your AI agent remembers across sessions and projects",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "opencode-solomemory": "./dist/cli.js"
+    "oc-solomemory": "./dist/cli.js"
   },
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist --target node && bun build ./src/cli.ts --outfile ./dist/cli.js --target node && tsc --emitDeclarationOnly",

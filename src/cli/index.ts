@@ -3,7 +3,7 @@ import { install } from "./install.js";
 
 function printHelp(): void {
   console.log(`
-opencode-solomemory - Persistent memory for OpenCode agents
+oc-solomemory - Persistent memory for OpenCode agents
 
 Commands:
   install    Install and configure the plugin
@@ -13,9 +13,9 @@ Commands:
   logout     Clear stored credentials
 
 Examples:
-  bunx opencode-solomemory@latest install
-  bunx opencode-solomemory@latest login
-  bunx opencode-solomemory@latest logout
+  bunx oc-solomemory@latest install
+  bunx oc-solomemory@latest login
+  bunx oc-solomemory@latest logout
 `);
 }
 

@@ -11,7 +11,7 @@ import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.j
 const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
 const OH_MY_OPENCODE_CONFIG = path.join(OPENCODE_CONFIG_DIR, "oh-my-opencode.json");
-const PLUGIN_NAME = "opencode-solomemory@latest";
+const PLUGIN_NAME = "oc-solomemory@latest";
 const JSON_INDENT_SPACES = 2;
 const SEPARATOR_WIDTH = 50;
 
@@ -92,7 +92,7 @@ function addPluginToConfig(configPath: string): boolean {
   try {
     const content = readFileSync(configPath, "utf8");
 
-    if (content.includes("opencode-solomemory")) {
+    if (content.includes("oc-solomemory")) {
       console.log("✓ Plugin already registered in config");
       return true;
     }
@@ -294,7 +294,7 @@ function printApiKeyInstructions(): void {
   console.log("Set your API key via environment variable:");
   console.log('  export SOLOMEMORY_API_KEY="your-api-key"');
   console.log("\nOr run:");
-  console.log("  bunx opencode-solomemory@latest login");
+  console.log("  bunx oc-solomemory@latest login");
   console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
   console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
 }
@@ -305,7 +305,7 @@ interface InstallOptions {
 }
 
 export async function install(options: InstallOptions): Promise<number> {
-  console.log("\n🧠 opencode-solomemory installer\n");
+  console.log("\n🧠 oc-solomemory installer\n");
 
   const rl = options.tui ? createReadline() : null;
 

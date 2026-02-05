@@ -1,4 +1,4 @@
-# Contributing to opencode-solomemory
+# Contributing to oc-solomemory
 
 ## Prerequisites
 

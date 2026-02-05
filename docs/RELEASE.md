@@ -5,7 +5,7 @@
 Every push to `v1.0` auto-publishes a dev version to npm:
 
 ```
-1.0.0-dev.a1b2c3d  →  npm install opencode-solomemory@dev
+1.0.0-dev.a1b2c3d  →  npm install oc-solomemory@dev
 ```
 
 Runs full `bun run check` before publishing. Skipped for tag pushes.

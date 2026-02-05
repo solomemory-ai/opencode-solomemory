@@ -4,10 +4,10 @@
   <img src="https://raw.githubusercontent.com/solomemory-ai/.github/main/brand/logo-mark-black-transparent.png" alt="Solo Memory" width="120">
 </picture>
 
-# opencode-solomemory
+# oc-solomemory
 
-[![npm version](https://img.shields.io/npm/v/opencode-solomemory?color=blue)](https://www.npmjs.com/package/opencode-solomemory)
-[![npm downloads](https://img.shields.io/npm/dm/opencode-solomemory)](https://www.npmjs.com/package/opencode-solomemory)
+[![npm version](https://img.shields.io/npm/v/oc-solomemory?color=blue)](https://www.npmjs.com/package/oc-solomemory)
+[![npm downloads](https://img.shields.io/npm/dm/oc-solomemory)](https://www.npmjs.com/package/oc-solomemory)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Runtime-Bun-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
@@ -29,7 +29,7 @@ Your AI agent remembers what you tell it — across sessions, across projects.
 ## Quick Start
 
 ```bash
-bunx opencode-solomemory@latest install
+bunx oc-solomemory@latest install
 export SOLOMEMORY_API_KEY="your-api-key"
 ```
 
