@@ -12,6 +12,8 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target node && bun build ./src/cli.ts --outfile ./dist/cli.js --target node && tsc --emitDeclarationOnly",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "prepare": "husky",
+    "check": "eslint src/ && prettier --check . && tsc --noEmit && bun run build",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write .",
@@ -44,6 +46,8 @@
     "eslint-plugin-sonarjs": "^3.0.6",
     "eslint-plugin-unicorn": "^62.0.0",
     "globals": "^17.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.54.0"
@@ -53,6 +57,15 @@
     "hooks": [
       "chat.message",
       "event"
+    ]
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --max-warnings 0",
+      "prettier --check"
+    ],
+    "*.{json,md,jsonc,yml,yaml}": [
+      "prettier --check"
     ]
   },
   "files": [
