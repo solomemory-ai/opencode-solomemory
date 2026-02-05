@@ -23,7 +23,10 @@ export interface SessionMessage {
 
 export function extractTextFromParts(parts: Part[]): string {
   return parts
-    .filter((p): p is Part & { type: "text"; text: string } => p.type === "text" && "text" in p)
+    .filter(
+      (p): p is Part & { type: "text"; text: string } =>
+        p.type === "text" && "text" in p && !("synthetic" in p && Boolean(p.synthetic)),
+    )
     .map((p) => p.text)
     .join("\n");
 }
