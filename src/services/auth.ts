@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { homedir } from "node:os";
+import path from "node:path";
 
 const CREDENTIALS_DIR = path.join(homedir(), ".solomemory-opencode");
 const CREDENTIALS_FILE = path.join(CREDENTIALS_DIR, "credentials.json");
@@ -10,11 +10,24 @@ interface Credentials {
   createdAt: string;
 }
 
+function isCredentials(data: unknown): data is Credentials {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "apiKey" in data &&
+    typeof data.apiKey === "string" &&
+    "createdAt" in data &&
+    typeof data.createdAt === "string"
+  );
+}
+
 export function loadCredentials(): Credentials | null {
   if (!existsSync(CREDENTIALS_FILE)) return null;
   try {
     const content = readFileSync(CREDENTIALS_FILE, "utf8");
-    return JSON.parse(content) as Credentials;
+    const data: unknown = JSON.parse(content);
+    if (!isCredentials(data)) return null;
+    return data;
   } catch {
     return null;
   }

@@ -3,82 +3,125 @@
  * Handles // and /* comments, URLs in strings, and escaped quotes.
  * Also removes trailing commas to support more relaxed JSONC format.
  */
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity
-export function stripJsoncComments(content: string): string {
-  let result = "";
-  let i = 0;
-  let inString = false;
-  let inSingleLineComment = false;
-  let inMultiLineComment = false;
 
-  while (i < content.length) {
-    const char = content[i];
-    const nextChar = content[i + 1];
+interface ProcessState {
+  result: string;
+  i: number;
+  inString: boolean;
+  inSingleLineComment: boolean;
+  inMultiLineComment: boolean;
+}
 
-    if (!inSingleLineComment && !inMultiLineComment && char === '"') {
-      // Count consecutive backslashes before this quote
-      let backslashCount = 0;
-      let j = i - 1;
-      while (j >= 0 && content[j] === "\\") {
-        backslashCount++;
-        j--;
-      }
-      // Quote is escaped only if preceded by ODD number of backslashes
-      // e.g., \" = escaped, \\" = not escaped (escaped backslash + quote)
-      if (backslashCount % 2 === 0) {
-        inString = !inString;
-      }
-      result += char;
-      i++;
-      continue;
-    }
+function processStringChar(content: string, state: ProcessState): void {
+  const char = content[state.i];
+  if (char === undefined) return;
 
-    if (inString) {
-      result += char;
-      i++;
-      continue;
-    }
+  // Count consecutive backslashes before this quote
+  let backslashCount = 0;
+  let j = state.i - 1;
+  while (j >= 0 && content[j] === "\\") {
+    backslashCount++;
+    j--;
+  }
+  // Quote is escaped only if preceded by ODD number of backslashes
+  if (backslashCount % 2 === 0) {
+    state.inString = !state.inString;
+  }
+  state.result += char;
+  state.i++;
+}
 
-    if (!inSingleLineComment && !inMultiLineComment) {
-      if (char === "/" && nextChar === "/") {
-        inSingleLineComment = true;
-        i += 2;
-        continue;
-      }
+function processSingleLineComment(content: string, state: ProcessState): void {
+  const char = content[state.i];
+  if (char === undefined) return;
 
-      if (char === "/" && nextChar === "*") {
-        inMultiLineComment = true;
-        i += 2;
-        continue;
-      }
-    }
+  if (char === "\n") {
+    state.inSingleLineComment = false;
+    state.result += char;
+  }
+  state.i++;
+}
 
-    if (inSingleLineComment) {
-      if (char === "\n") {
-        inSingleLineComment = false;
-        result += char;
-      }
-      i++;
-      continue;
-    }
+function processMultiLineComment(content: string, state: ProcessState): void {
+  const char = content[state.i];
+  const nextChar = content[state.i + 1];
 
-    if (inMultiLineComment) {
-      if (char === "*" && nextChar === "/") {
-        inMultiLineComment = false;
-        i += 2;
-        continue;
-      }
-      if (char === "\n") {
-        result += char;
-      }
-      i++;
-      continue;
-    }
+  if (char === "*" && nextChar === "/") {
+    state.inMultiLineComment = false;
+    state.i += 2;
+    return;
+  }
+  if (char === "\n") {
+    state.result += char;
+  }
+  state.i++;
+}
 
-    result += char;
-    i++;
+function handleCommentStart(
+  char: string | undefined,
+  nextChar: string | undefined,
+  state: ProcessState,
+): boolean {
+  if (char === "/" && nextChar === "/") {
+    state.inSingleLineComment = true;
+    state.i += 2;
+    return true;
   }
 
-  // Remove trailing commas before } or ]
-  return result.replaceAll(/,\s*([}\]])/g, "$1");
+  if (char === "/" && nextChar === "*") {
+    state.inMultiLineComment = true;
+    state.i += 2;
+    return true;
+  }
+
+  return false;
+}
+
+function processCharacter(content: string, state: ProcessState): void {
+  const char = content[state.i];
+  const nextChar = content[state.i + 1];
+
+  if (!state.inSingleLineComment && !state.inMultiLineComment && char === '"') {
+    processStringChar(content, state);
+    return;
+  }
+
+  if (state.inString) {
+    state.result += char ?? "";
+    state.i++;
+    return;
+  }
+
+  if (state.inSingleLineComment) {
+    processSingleLineComment(content, state);
+    return;
+  }
+
+  if (state.inMultiLineComment) {
+    processMultiLineComment(content, state);
+    return;
+  }
+
+  if (handleCommentStart(char, nextChar, state)) {
+    return;
+  }
+
+  state.result += char ?? "";
+  state.i++;
+}
+
+export function stripJsoncComments(content: string): string {
+  const state: ProcessState = {
+    result: "",
+    i: 0,
+    inString: false,
+    inSingleLineComment: false,
+    inMultiLineComment: false,
+  };
+
+  while (state.i < content.length) {
+    processCharacter(content, state);
+  }
+
+  return state.result.replaceAll(/,\s*([}\]])/g, "$1");
 }

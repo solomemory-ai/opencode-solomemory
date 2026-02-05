@@ -45,9 +45,10 @@ function scheduleFlush(): void {
 
 export function log(message: string, data?: unknown): void {
   const timestamp = new Date().toISOString();
-  const line = data
-    ? `[${timestamp}] ${message}: ${JSON.stringify(data)}\n`
-    : `[${timestamp}] ${message}\n`;
+  const line =
+    data === undefined
+      ? `[${timestamp}] ${message}\n`
+      : `[${timestamp}] ${message}: ${JSON.stringify(data)}\n`;
 
   logQueue.push(line);
   scheduleFlush();

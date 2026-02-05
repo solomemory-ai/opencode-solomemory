@@ -40,16 +40,43 @@ function formatTimeAgo(dateStr: string | undefined): string {
   const diffMonth = Math.floor(diffDay / 30);
   const diffYear = Math.floor(diffDay / 365);
 
-  if (diffYear > 0) return `${diffYear}y ago`;
-  if (diffMonth > 0) return `${diffMonth}mo ago`;
-  if (diffWeek > 0) return `${diffWeek}w ago`;
-  if (diffDay > 0) return `${diffDay}d ago`;
-  if (diffHr > 0) return `${diffHr}h ago`;
-  if (diffMin > 0) return `${diffMin}m ago`;
+  if (diffYear > 0) return `${String(diffYear)}y ago`;
+  if (diffMonth > 0) return `${String(diffMonth)}mo ago`;
+  if (diffWeek > 0) return `${String(diffWeek)}w ago`;
+  if (diffDay > 0) return `${String(diffDay)}d ago`;
+  if (diffHr > 0) return `${String(diffHr)}h ago`;
+  if (diffMin > 0) return `${String(diffMin)}m ago`;
   return "just now";
 }
 
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity
+function formatProfileSection(facts: ProfileFact[], title: string, maxItems: number): string[] {
+  const lines: string[] = [];
+  if (facts.length > 0) {
+    lines.push(`\n${title}:`);
+    for (const item of facts.slice(0, maxItems)) {
+      const timeAgo = formatTimeAgo(item.validAt);
+      const timeStr = timeAgo ? ` (${timeAgo})` : "";
+      lines.push(`-${timeStr} ${item.fact}`);
+    }
+  }
+  return lines;
+}
+
+function formatMemorySection(memories: MemoryResultMinimal[], title: string): string[] {
+  const lines: string[] = [];
+  if (memories.length > 0) {
+    lines.push(`\n${title}:`);
+    for (const mem of memories) {
+      const similarity = Math.round(mem.similarity * 100);
+      const content = mem.memory ?? mem.chunk ?? "";
+      const timeAgo = formatTimeAgo(mem.validAt ?? mem.createdAt);
+      const timeStr = timeAgo ? ` (${timeAgo})` : "";
+      lines.push(`- [${String(similarity)}%]${timeStr} ${content}`);
+    }
+  }
+  return lines;
+}
+
 export function formatContextForPrompt(
   profile: ProfileResponse | null,
   userMemories: MemoriesResponseMinimal,
@@ -59,49 +86,18 @@ export function formatContextForPrompt(
 
   if (CONFIG.injectProfile && profile?.profile) {
     const { static: staticFacts, dynamic: dynamicFacts } = profile.profile;
-
-    if (staticFacts.length > 0) {
-      parts.push("\nUser Profile:");
-      for (const item of staticFacts.slice(0, CONFIG.maxProfileItems)) {
-        const timeAgo = formatTimeAgo(item.validAt);
-        const timeStr = timeAgo ? ` (${timeAgo})` : "";
-        parts.push(`-${timeStr} ${item.fact}`);
-      }
-    }
-
-    if (dynamicFacts.length > 0) {
-      parts.push("\nRecent Context:");
-      for (const item of dynamicFacts.slice(0, CONFIG.maxProfileItems)) {
-        const timeAgo = formatTimeAgo(item.validAt);
-        const timeStr = timeAgo ? ` (${timeAgo})` : "";
-        parts.push(`-${timeStr} ${item.fact}`);
-      }
-    }
+    const profileLines = [
+      ...formatProfileSection(staticFacts, "User Profile", CONFIG.maxProfileItems),
+      ...formatProfileSection(dynamicFacts, "Recent Context", CONFIG.maxProfileItems),
+    ];
+    parts.push(...profileLines);
   }
 
   const projectResults = projectMemories.results ?? [];
-  if (projectResults.length > 0) {
-    parts.push("\nProject Knowledge:");
-    for (const mem of projectResults) {
-      const similarity = Math.round(mem.similarity * 100);
-      const content = mem.memory ?? mem.chunk ?? "";
-      const timeAgo = formatTimeAgo(mem.validAt ?? mem.createdAt);
-      const timeStr = timeAgo ? ` (${timeAgo})` : "";
-      parts.push(`- [${similarity}%]${timeStr} ${content}`);
-    }
-  }
+  parts.push(...formatMemorySection(projectResults, "Project Knowledge"));
 
   const userResults = userMemories.results ?? [];
-  if (userResults.length > 0) {
-    parts.push("\nRelevant Memories:");
-    for (const mem of userResults) {
-      const similarity = Math.round(mem.similarity * 100);
-      const content = mem.memory ?? mem.chunk ?? "";
-      const timeAgo = formatTimeAgo(mem.validAt ?? mem.createdAt);
-      const timeStr = timeAgo ? ` (${timeAgo})` : "";
-      parts.push(`- [${similarity}%]${timeStr} ${content}`);
-    }
-  }
+  parts.push(...formatMemorySection(userResults, "Relevant Memories"));
 
   if (parts.length === 1) {
     return "";

@@ -1,0 +1,35 @@
+{
+  // ── ESLint ──────────────────────────────────────────────────────
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["typescript"],
+  "eslint.workingDirectories": ["."],
+
+  // ── Prettier ────────────────────────────────────────────────────
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ── ESLint auto-fix on save ─────────────────────────────────────
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // ── TypeScript ──────────────────────────────────────────────────
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // ── Disable VS Code built-in JS/TS validation (ESLint handles it)
+  "typescript.validate.enable": true,
+  "javascript.validate.enable": false
+}

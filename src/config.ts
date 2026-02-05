@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { homedir } from "node:os";
-import { stripJsoncComments } from "./services/jsonc.js";
+import path from "node:path";
+
 import { loadCredentials } from "./services/auth.js";
+import { stripJsoncComments } from "./services/jsonc.js";
 
 const CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const CONFIG_FILES = [
@@ -39,17 +40,28 @@ const DEFAULTS = {
     "You are a stateful coding agent. Remember all the information, including but not limited to user's coding preferences, tech stack, behaviours, workflows, and any other relevant details.",
 } as const;
 
+function isSolomemoryConfig(data: unknown): data is SolomemoryConfig {
+  return typeof data === "object" && data !== null;
+}
+
+function tryLoadConfigFile(filePath: string): SolomemoryConfig | null {
+  if (!existsSync(filePath)) return null;
+
+  try {
+    const content = readFileSync(filePath, "utf8");
+    const json = stripJsoncComments(content);
+    const data: unknown = JSON.parse(json);
+    if (!isSolomemoryConfig(data)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 function loadConfigFromFile(): SolomemoryConfig {
   for (const filePath of CONFIG_FILES) {
-    if (existsSync(filePath)) {
-      try {
-        const content = readFileSync(filePath, "utf8");
-        const json = stripJsoncComments(content);
-        return JSON.parse(json) as SolomemoryConfig;
-      } catch {
-        continue;
-      }
-    }
+    const config = tryLoadConfigFile(filePath);
+    if (config !== null) return config;
   }
   return {};
 }
@@ -60,28 +72,36 @@ let _apiUrl: string | undefined;
 let _config: RuntimeConfig | null = null;
 let _initialized = false;
 
-// eslint-disable-next-line complexity
+function resolveApiKey(fileConfig: SolomemoryConfig): string | undefined {
+  return process.env.SOLOMEMORY_API_KEY ?? fileConfig.apiKey ?? loadCredentials()?.apiKey;
+}
+
+function resolveApiUrl(fileConfig: SolomemoryConfig): string {
+  return process.env.SOLOMEMORY_API_URL ?? fileConfig.apiUrl ?? DEFAULT_API_URL;
+}
+
+function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
+  return {
+    similarityThreshold: fileConfig.similarityThreshold ?? DEFAULTS.similarityThreshold,
+    maxMemories: fileConfig.maxMemories ?? DEFAULTS.maxMemories,
+    maxProjectMemories: fileConfig.maxProjectMemories ?? DEFAULTS.maxProjectMemories,
+    maxProfileItems: fileConfig.maxProfileItems ?? DEFAULTS.maxProfileItems,
+    injectProfile: fileConfig.injectProfile ?? DEFAULTS.injectProfile,
+    containerTagPrefix: fileConfig.containerTagPrefix ?? DEFAULTS.containerTagPrefix,
+    platformIdentifier: fileConfig.platformIdentifier ?? DEFAULTS.platformIdentifier,
+    autoSyncConversations: fileConfig.autoSyncConversations ?? DEFAULTS.autoSyncConversations,
+    filterPrompt: fileConfig.filterPrompt ?? DEFAULTS.filterPrompt,
+  };
+}
+
 function ensureInitialized(): void {
   if (_initialized) return;
   _initialized = true;
 
   _fileConfig = loadConfigFromFile();
-
-  _apiKey = process.env.SOLOMEMORY_API_KEY ?? _fileConfig.apiKey ?? loadCredentials()?.apiKey;
-
-  _apiUrl = process.env.SOLOMEMORY_API_URL ?? _fileConfig.apiUrl ?? DEFAULT_API_URL;
-
-  _config = {
-    similarityThreshold: _fileConfig.similarityThreshold ?? DEFAULTS.similarityThreshold,
-    maxMemories: _fileConfig.maxMemories ?? DEFAULTS.maxMemories,
-    maxProjectMemories: _fileConfig.maxProjectMemories ?? DEFAULTS.maxProjectMemories,
-    maxProfileItems: _fileConfig.maxProfileItems ?? DEFAULTS.maxProfileItems,
-    injectProfile: _fileConfig.injectProfile ?? DEFAULTS.injectProfile,
-    containerTagPrefix: _fileConfig.containerTagPrefix ?? DEFAULTS.containerTagPrefix,
-    platformIdentifier: _fileConfig.platformIdentifier ?? DEFAULTS.platformIdentifier,
-    autoSyncConversations: _fileConfig.autoSyncConversations ?? DEFAULTS.autoSyncConversations,
-    filterPrompt: _fileConfig.filterPrompt ?? DEFAULTS.filterPrompt,
-  };
+  _apiKey = resolveApiKey(_fileConfig);
+  _apiUrl = resolveApiUrl(_fileConfig);
+  _config = buildRuntimeConfig(_fileConfig);
 }
 
 export function getApiKey(): string | undefined {
@@ -91,7 +111,7 @@ export function getApiKey(): string | undefined {
 
 export function getApiUrl(): string {
   ensureInitialized();
-  return _apiUrl!;
+  return _apiUrl ?? DEFAULT_API_URL;
 }
 
 export function isConfigured(): boolean {
@@ -112,12 +132,46 @@ export interface RuntimeConfig {
 
 export function getConfig(): RuntimeConfig {
   ensureInitialized();
-  return _config!;
+  if (_config === null) {
+    throw new Error("Config not initialized");
+  }
+  return _config;
 }
 
-export const CONFIG: RuntimeConfig = new Proxy({} as RuntimeConfig, {
-  // eslint-disable-next-line sonarjs/function-return-type
-  get(_target, prop: keyof RuntimeConfig) {
-    return getConfig()[prop];
+function isRuntimeConfigKey(prop: string): prop is keyof RuntimeConfig {
+  const validKeys = [
+    "similarityThreshold",
+    "maxMemories",
+    "maxProjectMemories",
+    "maxProfileItems",
+    "injectProfile",
+    "containerTagPrefix",
+    "platformIdentifier",
+    "autoSyncConversations",
+    "filterPrompt",
+  ];
+  return validKeys.includes(prop);
+}
+
+const configHandler: ProxyHandler<RuntimeConfig> = {
+  get(_target, prop: string | symbol): unknown {
+    if (typeof prop === "string" && isRuntimeConfigKey(prop)) {
+      return getConfig()[prop];
+    }
+    return undefined;
   },
-});
+};
+
+const emptyConfig: RuntimeConfig = {
+  similarityThreshold: 0,
+  maxMemories: 0,
+  maxProjectMemories: 0,
+  maxProfileItems: 0,
+  injectProfile: false,
+  containerTagPrefix: "",
+  platformIdentifier: "",
+  autoSyncConversations: false,
+  filterPrompt: "",
+};
+
+export const CONFIG: RuntimeConfig = new Proxy<RuntimeConfig>(emptyConfig, configHandler);

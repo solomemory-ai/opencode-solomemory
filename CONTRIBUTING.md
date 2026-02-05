@@ -33,20 +33,30 @@ The project has two build targets:
 
 ```
 src/
-├── index.ts           # Plugin entry: hooks + tool definition
-├── config.ts          # Config resolution (env > jsonc > credentials > defaults)
-├── cli.ts             # CLI installer + auth commands
+├── index.ts               # Plugin entry: hooks + wiring
+├── tools.ts               # Tool handler (search, profile, list, help)
+├── sync.ts                # Session sync logic
+├── config.ts              # Config resolution (env > jsonc > credentials > defaults)
+├── cli.ts                 # CLI entry point
+├── cli/
+│   ├── index.ts           # CLI argument parsing + dispatch
+│   ├── install.ts         # Install command
+│   ├── auth.ts            # Login/logout/whoami commands
+│   ├── templates.ts       # Config templates + string constants
+│   └── prompt.ts          # Interactive prompts
 ├── types/
-│   └── index.ts       # Shared interfaces
+│   └── index.ts           # Shared interfaces
 └── services/
-    ├── client.ts      # API communication
-    ├── context.ts     # Memory → prompt formatting
-    ├── messages.ts    # Message extraction + filtering
-    ├── tags.ts        # Container tag generation (project, repo, branch)
-    ├── privacy.ts     # PII/secret redaction
-    ├── auth.ts        # Credential management
-    ├── logger.ts      # File logger
-    └── jsonc.ts       # JSONC parser
+    ├── client.ts          # API communication
+    ├── client-types.ts    # API response types + type guards
+    ├── context.ts         # Memory → prompt formatting
+    ├── messages.ts        # Message extraction + filtering
+    ├── tags.ts            # Container tag generation
+    ├── workspace.ts       # Git/workspace info detection
+    ├── privacy.ts         # PII/secret redaction
+    ├── auth.ts            # Credential management
+    ├── logger.ts          # File logger
+    └── jsonc.ts           # JSONC parser
 ```
 
 ### Testing
@@ -84,9 +94,11 @@ bun run format:check  # Check formatting without writing
 
 **Rules enforced by the linter:**
 
-- **TypeScript strict** — no `any`, no unsafe assignments/calls/returns, no floating promises
-- **Complexity limits** — cyclomatic complexity ≤15, cognitive complexity ≤15, max nesting depth ≤4, max function params ≤4
-- **Size limits** — max 600 lines per file, max 80 lines per function (blank lines and comments excluded)
+- **TypeScript strict** — no `any`, no unsafe assignments/calls/returns, no floating promises, no type assertions (`as X` is banned — use type guards instead)
+- **Strict boolean expressions** — no truthy checks on non-booleans; use explicit comparisons (`!== undefined`, `.length > 0`)
+- **Complexity limits** — cyclomatic complexity ≤10, cognitive complexity ≤10, max nesting depth ≤3, max function params ≤3
+- **Size limits** — max 300 lines per file, max 50 lines per function (blank lines and comments excluded)
+- **Import organization** — imports are auto-sorted; run `bun run lint:fix` to reorder
 - **Modern JS** — nullish coalescing (`??`) over logical OR (`||`), `for...of` over `.forEach()`, `Number.isNaN()` over `isNaN()`
 - **No duplicates** — no identical functions, no repeated string literals
 
@@ -96,6 +108,7 @@ bun run format:check  # Check formatting without writing
 - Keep imports explicit (`verbatimModuleSyntax` is enabled).
 - Use `import type` for type-only imports.
 - Use default imports for Node built-ins (`import path from "node:path"`, not named imports).
+- No `eslint-disable` comments unless suppressing a verified false positive.
 
 ### Commit messages
 

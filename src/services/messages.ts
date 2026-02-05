@@ -28,14 +28,26 @@ export function extractTextFromParts(parts: Part[]): string {
     .join("\n");
 }
 
+interface ToolPartLike {
+  type: "tool";
+  tool: string;
+  state: { status: string };
+}
+
+function isToolPart(p: Part): p is Part & ToolPartLike {
+  return p.type === "tool" && "tool" in p;
+}
+
+function getToolState(p: Part & ToolPartLike): string {
+  return p.state.status;
+}
+
 export function extractToolInfoFromParts(parts: Part[]): { tool: string; state: string }[] {
   return parts
-    .filter((p): p is Part & { type: "tool"; tool: string } => p.type === "tool" && "tool" in p)
+    .filter((p): p is Part & ToolPartLike => isToolPart(p))
     .map((p) => ({
-      tool: (p as Part & { type: "tool"; tool: string; state?: { status?: string } }).tool,
-      state: String(
-        (p as Part & { type: "tool"; state?: { status?: string } }).state?.status ?? "unknown",
-      ),
+      tool: p.tool,
+      state: getToolState(p),
     }));
 }
 
@@ -51,7 +63,7 @@ export function extractContentFromParts(parts: Part[]): string {
 }
 
 export function hasSyntheticPart(parts: Part[]): boolean {
-  return parts.some((p) => "synthetic" in p && p.synthetic);
+  return parts.some((p) => "synthetic" in p && p.synthetic === true);
 }
 
 export function isNonSyntheticMessage(msg: SessionMessage): boolean {

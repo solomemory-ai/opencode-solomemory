@@ -2,12 +2,13 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   // Base
   eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 
   // Plugins
@@ -30,17 +31,20 @@ export default tseslint.config(
   // Project rules
   {
     files: ["src/**/*.ts"],
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+    },
     rules: {
       // ── Complexity ──────────────────────────────────────────────
-      complexity: ["warn", 15],
-      "max-depth": ["warn", 4],
-      "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
-      "max-lines-per-function": ["warn", { max: 80, skipBlankLines: true, skipComments: true }],
-      "max-params": ["warn", 4],
-      "max-nested-callbacks": ["warn", 3],
+      complexity: ["error", 10],
+      "max-depth": ["error", 3],
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 50, skipBlankLines: true, skipComments: true }],
+      "max-params": ["error", 3],
+      "max-nested-callbacks": ["error", 3],
 
       // ── SonarJS ─────────────────────────────────────────────────
-      "sonarjs/cognitive-complexity": ["warn", 15],
+      "sonarjs/cognitive-complexity": ["error", 10],
 
       // ── TypeScript strict ───────────────────────────────────────
       "@typescript-eslint/no-explicit-any": "error",
@@ -48,6 +52,24 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/strict-boolean-expressions": [
+        "error",
+        {
+          allowString: true,
+          allowNumber: false,
+          allowNullableObject: true,
+          allowNullableBoolean: false,
+          allowNullableString: true,
+        },
+      ],
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
+      "@typescript-eslint/no-confusing-void-expression": "error",
+      "@typescript-eslint/prefer-readonly": "error",
+
+      // ── Import organization ─────────────────────────────────────
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
 
       // ── Unicorn overrides (opinionated defaults we relax) ──────
       "unicorn/prevent-abbreviations": "off",
