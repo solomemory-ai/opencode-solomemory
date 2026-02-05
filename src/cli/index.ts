@@ -1,4 +1,4 @@
-import { login, logout } from "./auth.js";
+import { login } from "./auth.js";
 import { install } from "./install.js";
 
 function printHelp(): void {
@@ -7,15 +7,15 @@ oc-solomemory - Persistent memory for OpenCode agents
 
 Commands:
   install    Install and configure the plugin
+    --api-key=KEY                Set API key during install
     --no-tui                     Non-interactive mode (for LLM agents)
     --disable-context-recovery   Disable Oh My OpenCode's context hook
   login      Configure API key
-  logout     Clear stored credentials
 
 Examples:
-  bunx oc-solomemory@latest install
-  bunx oc-solomemory@latest login
-  bunx oc-solomemory@latest logout
+  npx oc-solomemory@latest install --api-key=your-key
+  npx oc-solomemory@latest install
+  npx oc-solomemory@latest login
 `);
 }
 
@@ -23,10 +23,17 @@ function shouldShowHelp(command: string | undefined): boolean {
   return command === undefined || command === "help" || command === "--help" || command === "-h";
 }
 
-async function handleInstallCommand(args: string[]): Promise<number> {
+function parseApiKey(args: string[]): string | undefined {
+  const flag = args.find((a: string) => a.startsWith("--api-key="));
+  if (flag === undefined) return undefined;
+  return flag.split("=")[1];
+}
+
+function handleInstallCommand(args: string[]): Promise<number> {
   const noTui = args.includes("--no-tui");
   const disableAutoCompact = args.includes("--disable-context-recovery");
-  return install({ tui: !noTui, disableAutoCompact });
+  const apiKey = parseApiKey(args);
+  return install({ tui: !noTui, disableAutoCompact, apiKey });
 }
 
 async function handleCommand(command: string, args: string[]): Promise<number> {
@@ -40,9 +47,6 @@ async function handleCommand(command: string, args: string[]): Promise<number> {
     }
     case "login": {
       return login();
-    }
-    case "logout": {
-      return logout();
     }
     default: {
       console.error(`Unknown command: ${command}`);

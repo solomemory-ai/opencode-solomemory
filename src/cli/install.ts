@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { Interface as ReadlineInterface } from "node:readline";
 
+import { getCredentialsDir, saveCredentials } from "../services/auth.js";
 import { stripJsoncComments } from "../services/jsonc.js";
 import { login } from "./auth.js";
 import { confirm, createReadline } from "./prompt.js";
@@ -290,18 +291,30 @@ async function stepConfigureOhMyOpencode(
   }
 }
 
-function printApiKeyInstructions(): void {
-  console.log("Set your API key via environment variable:");
-  console.log('  export SOLOMEMORY_API_KEY="your-api-key"');
-  console.log("\nOr run:");
-  console.log("  bunx oc-solomemory@latest login");
-  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
-  console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
-}
-
 interface InstallOptions {
   readonly tui: boolean;
   readonly disableAutoCompact: boolean;
+  readonly apiKey: string | undefined;
+}
+
+function stepConfigureApiKey(options: InstallOptions): Promise<number> {
+  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
+  console.log("\n🔑 Final step: Configure API key\n");
+
+  if (options.apiKey !== undefined) {
+    saveCredentials(options.apiKey);
+    console.log(`✓ API key saved to ${getCredentialsDir()}`);
+    console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
+    return Promise.resolve(0);
+  }
+
+  if (options.tui) {
+    return login();
+  }
+
+  console.error("✗ API key is required. Use --api-key=KEY in non-interactive mode.");
+  console.error("\nExample:\n  npx oc-solomemory@latest install --api-key=your-key --no-tui");
+  return Promise.resolve(1);
 }
 
 export async function install(options: InstallOptions): Promise<number> {
@@ -317,13 +330,5 @@ export async function install(options: InstallOptions): Promise<number> {
     rl.close();
   }
 
-  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
-  console.log("\n🔑 Final step: Configure API key\n");
-
-  if (options.tui) {
-    return login();
-  }
-
-  printApiKeyInstructions();
-  return 0;
+  return stepConfigureApiKey(options);
 }

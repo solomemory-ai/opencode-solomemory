@@ -1,15 +1,12 @@
-import {
-  clearCredentials,
-  getCredentialsDir,
-  loadCredentials,
-  saveCredentials,
-} from "../services/auth.js";
+import { getCredentialsDir, loadCredentials, saveCredentials } from "../services/auth.js";
 import { createReadline, prompt } from "./prompt.js";
 
 export async function login(): Promise<number> {
   const existing = loadCredentials();
   if (existing) {
-    console.log("Already configured. Use 'logout' first to reconfigure.");
+    console.log(
+      "✓ API key already configured.\nTo reconfigure, delete credentials and run install again.",
+    );
     return 0;
   }
 
@@ -25,16 +22,6 @@ export async function login(): Promise<number> {
   }
 
   saveCredentials(apiKey);
-  console.log(`\n✓ API key saved to ${getCredentialsDir()}`);
-  console.log("Restart OpenCode to activate.\n");
-  return 0;
-}
-
-export function logout(): number {
-  if (clearCredentials()) {
-    console.log("✓ Logged out. Credentials cleared.");
-  } else {
-    console.log("No credentials found.");
-  }
+  console.log(`\n✓ API key saved to ${getCredentialsDir()}\nRestart OpenCode to activate.\n`);
   return 0;
 }

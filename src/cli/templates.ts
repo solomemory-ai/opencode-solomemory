@@ -183,7 +183,7 @@ Create \`~/.config/opencode/solomemory.jsonc\`:
 Save credentials using the CLI:
 
 \`\`\`bash
-bunx oc-solomemory@latest login
+npx oc-solomemory@latest login
 \`\`\`
 
 This will prompt for your API key and save it securely.
