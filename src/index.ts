@@ -1,6 +1,6 @@
 import type { Plugin, PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
-import type { Event, Part } from "@opencode-ai/sdk";
+import type { Agent, Event, Part } from "@opencode-ai/sdk";
 
 import { CONFIG, isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
@@ -8,6 +8,7 @@ import { formatContextForPrompt } from "./services/context.js";
 import { log } from "./services/logger.js";
 import type { Tags } from "./services/tags.js";
 import { getTags } from "./services/tags.js";
+import { subagentSessions } from "./state.js";
 import { handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
 import type { Memory } from "./types/index.js";
@@ -17,20 +18,27 @@ declare const PKG_VERSION: string;
 const CONTEXT_PREVIEW_LENGTH = 100;
 
 const injectedSessions = new Set<string>();
-const subagentSessions = new Set<string>();
 
-async function isSubagentSession(ctx: PluginInput, sessionID: string): Promise<boolean> {
-  if (subagentSessions.has(sessionID)) return true;
+let subagentNames: Set<string> | undefined;
 
-  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
-
-  if (sessionInfo.data?.parentID) {
-    subagentSessions.add(sessionID);
-    log("chat.message: skipping subagent session", { sessionID });
-    return true;
+async function loadSubagentNames(client: PluginInput["client"]): Promise<Set<string>> {
+  try {
+    const response = await client.app.agents();
+    const agents: Agent[] = response.data ?? [];
+    const names = new Set(agents.filter((a) => a.mode === "subagent").map((a) => a.name));
+    log("loaded subagent names", { names: [...names] });
+    return names;
+  } catch (error) {
+    log("failed to load subagent names, using empty set", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return new Set<string>();
   }
+}
 
-  return false;
+function isSubagentAgent(agentName: string | undefined): boolean {
+  if (agentName === undefined || subagentNames === undefined) return false;
+  return subagentNames.has(agentName);
 }
 
 function extractUserMessage(parts: Part[]): string | null {
@@ -111,36 +119,40 @@ async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]
 }
 
 interface ChatMessageInput {
-  readonly ctx: PluginInput;
   readonly sessionID: string;
+  readonly agentName: string | undefined;
   readonly projectScopeTag: string;
 }
 
-async function handleChatMessage(
+function handleChatMessage(
   input: ChatMessageInput,
   output: { message: { id: string }; parts: Part[] },
-): Promise<void> {
-  const { ctx, sessionID, projectScopeTag } = input;
+): Promise<void> | undefined {
+  const { sessionID, agentName, projectScopeTag } = input;
 
-  if (subagentSessions.has(sessionID)) return;
+  if (subagentSessions.has(sessionID)) return undefined;
+
+  if (isSubagentAgent(agentName)) {
+    subagentSessions.add(sessionID);
+    log("chat.message: skipping subagent session", { sessionID, agentName });
+    return undefined;
+  }
 
   const userMessage = extractUserMessage(output.parts);
-  if (userMessage === null) return;
+  if (userMessage === null) return undefined;
 
   log("chat.message: processing", {
     messagePreview: userMessage.slice(0, CONTEXT_PREVIEW_LENGTH),
     partsCount: output.parts.length,
   });
 
-  if (!injectedSessions.has(sessionID)) {
-    if (await isSubagentSession(ctx, sessionID)) return;
+  if (injectedSessions.has(sessionID)) return undefined;
 
-    injectedSessions.add(sessionID);
-    await fetchAndInjectContext(
-      { sessionID, messageID: output.message.id, userMessage, projectScopeTag },
-      output.parts,
-    );
-  }
+  injectedSessions.add(sessionID);
+  return fetchAndInjectContext(
+    { sessionID, messageID: output.message.id, userMessage, projectScopeTag },
+    output.parts,
+  );
 }
 
 interface PluginContext {
@@ -179,29 +191,39 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
   }
 }
 
-export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
+interface InitResult {
+  projectScopeTag: string;
+  pluginContext: PluginContext;
+}
+
+function initPlugin(ctx: PluginInput): InitResult {
+  const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
   const { directory } = ctx;
   const tags = getTags(directory);
   const projectScopeTag = tags.repository ?? tags.project;
-  const pluginContext: PluginContext = { ctx, directory, tags };
-  const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
+
   log(`oc-solomemory v${version}`, {
     directory,
     tags,
     projectScopeTag,
     configured: isConfigured(),
   });
-
   void ctx.client.tui.showToast({
-    body: {
-      message: `oc-solomemory v${version}`,
-      variant: "info",
-    },
+    body: { message: `oc-solomemory v${version}`, variant: "info" },
+  });
+  void loadSubagentNames(ctx.client).then((names) => {
+    subagentNames = names;
   });
 
   if (!isConfigured()) {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");
   }
+
+  return { projectScopeTag, pluginContext: { ctx, directory, tags } };
+}
+
+export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
+  const { projectScopeTag, pluginContext } = initPlugin(ctx);
 
   return Promise.resolve({
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -209,7 +231,10 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
       if (!isConfigured()) return;
 
       try {
-        await handleChatMessage({ ctx, sessionID: input.sessionID, projectScopeTag }, output);
+        await handleChatMessage(
+          { sessionID: input.sessionID, agentName: input.agent, projectScopeTag },
+          output,
+        );
       } catch (error) {
         log("chat.message: ERROR", { error: String(error) });
       }

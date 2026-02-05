@@ -24,6 +24,7 @@ import {
   isMonorepo,
   parseRepoOwnerAndName,
 } from "./services/tags.js";
+import { subagentSessions } from "./state.js";
 import type { ConversationMessage } from "./types/index.js";
 
 export interface ConversationSyncState {
@@ -188,9 +189,7 @@ async function ingestAndLogResult(params: IngestParams): Promise<void> {
 export async function handleSessionIdle(input: SessionIdleInput): Promise<void> {
   const { sessionID, ctx, directory, tags } = input;
 
-  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
-
-  if (sessionInfo.data?.parentID) {
+  if (subagentSessions.has(sessionID)) {
     log("event: skipping subagent session sync", { sessionID });
     return;
   }
@@ -203,6 +202,7 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
     return;
   }
 
+  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
   const conversationTags = getConversationTags(tags, sessionID, directory);
   const metadata = buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length);
 
