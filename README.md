@@ -30,8 +30,14 @@ Your AI agent remembers what you tell it — across sessions, across projects.
 ## Quick Start
 
 ```bash
-bunx oc-solomemory@latest install
+npx oc-solomemory@latest install
 export SOLOMEMORY_API_KEY="your-api-key"
+```
+
+For the latest dev build:
+
+```bash
+npx oc-solomemory@dev install
 ```
 
 Get your API key at [solomemory.com](https://solomemory.com).
