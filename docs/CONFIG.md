@@ -13,7 +13,7 @@ Create `~/.config/opencode/solomemory.jsonc`:
   "injectProfile": true,
   "containerTagPrefix": "opencode",
   "keywordPatterns": ["log\\s+this", "write\\s+down"],
-  "compactionThreshold": 0.80
+  "compactionThreshold": 0.8,
 }
 ```
 

@@ -28,37 +28,37 @@ opencode-solomemory/
 
 ## WHERE TO LOOK
 
-| Task | Location | Notes |
-|------|----------|-------|
-| Add hook | `src/index.ts` | Register in plugin hooks object + opencode config |
-| Add tool mode | `src/index.ts` | Switch case in `solomemory` tool handler |
-| Add API endpoint | `src/services/client.ts` | New method + type guard + response type |
-| Change context format | `src/services/context.ts` | `formatContextForPrompt()` |
-| Add tag type | `src/services/tags.ts` | New getter + add to `getTags()` return |
-| Change config option | `src/config.ts` + `src/types/index.ts` | Add to RuntimeConfig, update defaults |
-| Add CLI command | `src/cli.ts` | New case in main switch |
-| Change privacy rules | `src/services/privacy.ts` | Regex patterns |
-| Modify sync behavior | `src/index.ts` | `session.idle` event handler |
+| Task                  | Location                               | Notes                                             |
+| --------------------- | -------------------------------------- | ------------------------------------------------- |
+| Add hook              | `src/index.ts`                         | Register in plugin hooks object + opencode config |
+| Add tool mode         | `src/index.ts`                         | Switch case in `solomemory` tool handler          |
+| Add API endpoint      | `src/services/client.ts`               | New method + type guard + response type           |
+| Change context format | `src/services/context.ts`              | `formatContextForPrompt()`                        |
+| Add tag type          | `src/services/tags.ts`                 | New getter + add to `getTags()` return            |
+| Change config option  | `src/config.ts` + `src/types/index.ts` | Add to RuntimeConfig, update defaults             |
+| Add CLI command       | `src/cli.ts`                           | New case in main switch                           |
+| Change privacy rules  | `src/services/privacy.ts`              | Regex patterns                                    |
+| Modify sync behavior  | `src/index.ts`                         | `session.idle` event handler                      |
 
 ## CODE MAP
 
-| Symbol | Type | Location | Role |
-|--------|------|----------|------|
-| `SolomemoryPlugin` | const (Plugin) | `src/index.ts` | Default export, plugin entry |
-| `solomemoryClient` | singleton | `src/services/client.ts` | All API communication |
-| `CONFIG` | Proxy | `src/config.ts` | Lazy-init config, accessed everywhere |
-| `getTags` | fn | `src/services/tags.ts` | Container tag generation (project, repo, branch, etc.) |
-| `formatContextForPrompt` | fn | `src/services/context.ts` | Memory → system prompt injection |
-| `sessionSyncState` | Map | `src/index.ts` | Incremental sync tracking per session |
-| `injectedSessions` | Set | `src/index.ts` | Prevents double-injection per session |
+| Symbol                   | Type           | Location                  | Role                                                   |
+| ------------------------ | -------------- | ------------------------- | ------------------------------------------------------ |
+| `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`            | Default export, plugin entry                           |
+| `solomemoryClient`       | singleton      | `src/services/client.ts`  | All API communication                                  |
+| `CONFIG`                 | Proxy          | `src/config.ts`           | Lazy-init config, accessed everywhere                  |
+| `getTags`                | fn             | `src/services/tags.ts`    | Container tag generation (project, repo, branch, etc.) |
+| `formatContextForPrompt` | fn             | `src/services/context.ts` | Memory → system prompt injection                       |
+| `sessionSyncState`       | Map            | `src/index.ts`            | Incremental sync tracking per session                  |
+| `injectedSessions`       | Set            | `src/index.ts`            | Prevents double-injection per session                  |
 
 ## HOOKS
 
-| Hook | Trigger | Action |
-|------|---------|--------|
-| `chat.message` | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part |
-| `event:session.idle` | Session idle | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingestConversation` |
-| `event:session.deleted` | Session deleted | Clean up `sessionSyncState` + `injectedSessions` Maps |
+| Hook                    | Trigger                        | Action                                                                                                           |
+| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `chat.message`          | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                             |
+| `event:session.idle`    | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingestConversation` |
+| `event:session.deleted` | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                            |
 
 ## TOOL
 
@@ -66,12 +66,12 @@ opencode-solomemory/
 
 ## MEMORY SCOPING
 
-| Scope | Tag Source | Example |
-|-------|-----------|---------|
-| User | `user` (hardcoded) | Cross-project preferences |
-| Project | Workspace dir hash (sha256, 16 chars) | `proj_a1b2c3d4e5f6` |
-| Repo | Git remote URL (normalized) | `github.com/org/repo` |
-| Branch | Git branch name (sanitized, NOT hashed) | `branch_feat/auth` |
+| Scope   | Tag Source                              | Example                   |
+| ------- | --------------------------------------- | ------------------------- |
+| User    | `user` (hardcoded)                      | Cross-project preferences |
+| Project | Workspace dir hash (sha256, 16 chars)   | `proj_a1b2c3d4e5f6`       |
+| Repo    | Git remote URL (normalized)             | `github.com/org/repo`     |
+| Branch  | Git branch name (sanitized, NOT hashed) | `branch_feat/auth`        |
 
 ## CONFIG RESOLUTION ORDER
 

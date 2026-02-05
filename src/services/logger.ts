@@ -1,8 +1,8 @@
-import { appendFile, writeFile } from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
+import { appendFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import path from "node:path";
 
-const LOG_FILE = join(homedir(), ".opencode-solomemory.log");
+const LOG_FILE = path.join(homedir(), ".opencode-solomemory.log");
 
 const logQueue: string[] = [];
 let flushScheduled = false;
@@ -14,15 +14,19 @@ async function flushLogs(): Promise<void> {
     return;
   }
 
-  const entries = logQueue.splice(0, logQueue.length);
+  const entries = logQueue.splice(0);
   const content = entries.join("");
 
   try {
-    if (!initialized) {
-      await writeFile(LOG_FILE, `\n--- Session started: ${new Date().toISOString()} ---\n${content}`, { flag: "a" });
-      initialized = true;
-    } else {
+    if (initialized) {
       await appendFile(LOG_FILE, content);
+    } else {
+      await writeFile(
+        LOG_FILE,
+        `\n--- Session started: ${new Date().toISOString()} ---\n${content}`,
+        { flag: "a" },
+      );
+      initialized = true;
     }
   } catch {
     // Logging should never crash the app
@@ -35,7 +39,7 @@ function scheduleFlush(): void {
   if (flushScheduled) return;
   flushScheduled = true;
   setImmediate(() => {
-    flushLogs();
+    void flushLogs();
   });
 }
 

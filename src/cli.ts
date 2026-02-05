@@ -1,15 +1,38 @@
 #!/usr/bin/env node
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { homedir } from "node:os";
 import * as readline from "node:readline";
 import { stripJsoncComments } from "./services/jsonc.js";
-import { clearCredentials, loadCredentials, saveCredentials, getCredentialsDir } from "./services/auth.js";
+import {
+  clearCredentials,
+  loadCredentials,
+  saveCredentials,
+  getCredentialsDir,
+} from "./services/auth.js";
 
-const OPENCODE_CONFIG_DIR = join(homedir(), ".config", "opencode");
-const OPENCODE_COMMAND_DIR = join(OPENCODE_CONFIG_DIR, "command");
-const OH_MY_OPENCODE_CONFIG = join(OPENCODE_CONFIG_DIR, "oh-my-opencode.json");
+const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
+const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
+const OH_MY_OPENCODE_CONFIG = path.join(OPENCODE_CONFIG_DIR, "oh-my-opencode.json");
 const PLUGIN_NAME = "opencode-solomemory@latest";
+
+interface OpencodeConfig {
+  plugin?: string[];
+  [key: string]: unknown;
+}
+
+interface OhMyOpencodeConfig {
+  disabled_hooks?: string[];
+  [key: string]: unknown;
+}
+
+function isOpencodeConfig(value: unknown): value is OpencodeConfig {
+  return typeof value === "object" && value !== null;
+}
+
+function isOhMyOpencodeConfig(value: unknown): value is OhMyOpencodeConfig {
+  return typeof value === "object" && value !== null;
+}
 
 const SOLOMEMORY_INIT_COMMAND = `---
 description: Initialize Solo Memory with comprehensive codebase knowledge
@@ -237,13 +260,13 @@ async function prompt(rl: readline.Interface, question: string): Promise<string>
 
 function findOpencodeConfig(): string | null {
   const candidates = [
-    join(OPENCODE_CONFIG_DIR, "opencode.jsonc"),
-    join(OPENCODE_CONFIG_DIR, "opencode.json"),
+    path.join(OPENCODE_CONFIG_DIR, "opencode.jsonc"),
+    path.join(OPENCODE_CONFIG_DIR, "opencode.json"),
   ];
 
-  for (const path of candidates) {
-    if (existsSync(path)) {
-      return path;
+  for (const filePath of candidates) {
+    if (existsSync(filePath)) {
+      return filePath;
     }
   }
 
@@ -252,24 +275,29 @@ function findOpencodeConfig(): string | null {
 
 function addPluginToConfig(configPath: string): boolean {
   try {
-    const content = readFileSync(configPath, "utf-8");
-    
+    const content = readFileSync(configPath, "utf8");
+
     if (content.includes("opencode-solomemory")) {
       console.log("✓ Plugin already registered in config");
       return true;
     }
 
     const jsonContent = stripJsoncComments(content);
-    let config: Record<string, unknown>;
-    
+    let config: OpencodeConfig;
+
     try {
-      config = JSON.parse(jsonContent);
+      const parsed: unknown = JSON.parse(jsonContent);
+      if (!isOpencodeConfig(parsed)) {
+        console.error("✗ Invalid config file format");
+        return false;
+      }
+      config = parsed;
     } catch {
       console.error("✗ Failed to parse config file");
       return false;
     }
 
-    const plugins = (config.plugin as string[]) || [];
+    const plugins = config.plugin ?? [];
     plugins.push(PLUGIN_NAME);
     config.plugin = plugins;
 
@@ -277,20 +305,17 @@ function addPluginToConfig(configPath: string): boolean {
       if (content.includes('"plugin"')) {
         const newContent = content.replace(
           /("plugin"\s*:\s*\[)([^\]]*?)(\])/,
-          (_match, start, middle, end) => {
+          (_match: string, start: string, middle: string, end: string) => {
             const trimmed = middle.trim();
             if (trimmed === "") {
               return `${start}\n    "${PLUGIN_NAME}"\n  ${end}`;
             }
             return `${start}${middle.trimEnd()},\n    "${PLUGIN_NAME}"\n  ${end}`;
-          }
+          },
         );
         writeFileSync(configPath, newContent);
       } else {
-        const newContent = content.replace(
-          /^(\s*\{)/,
-          `$1\n  "plugin": ["${PLUGIN_NAME}"],`
-        );
+        const newContent = content.replace(/^(\s*\{)/, `$1\n  "plugin": ["${PLUGIN_NAME}"],`);
         writeFileSync(configPath, newContent);
       }
     } else {
@@ -299,21 +324,21 @@ function addPluginToConfig(configPath: string): boolean {
 
     console.log(`✓ Added plugin to ${configPath}`);
     return true;
-  } catch (err) {
-    console.error("✗ Failed to update config:", err);
+  } catch (error) {
+    console.error("✗ Failed to update config:", error);
     return false;
   }
 }
 
 function createNewConfig(): boolean {
-  const configPath = join(OPENCODE_CONFIG_DIR, "opencode.jsonc");
+  const configPath = path.join(OPENCODE_CONFIG_DIR, "opencode.jsonc");
   mkdirSync(OPENCODE_CONFIG_DIR, { recursive: true });
-  
+
   const config = `{
   "plugin": ["${PLUGIN_NAME}"]
 }
 `;
-  
+
   writeFileSync(configPath, config);
   console.log(`✓ Created ${configPath}`);
   return true;
@@ -322,11 +347,11 @@ function createNewConfig(): boolean {
 function createCommands(): boolean {
   mkdirSync(OPENCODE_COMMAND_DIR, { recursive: true });
 
-  const initPath = join(OPENCODE_COMMAND_DIR, "solomemory-init.md");
+  const initPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-init.md");
   writeFileSync(initPath, SOLOMEMORY_INIT_COMMAND);
   console.log(`✓ Created /solomemory-init command`);
 
-  const loginPath = join(OPENCODE_COMMAND_DIR, "solomemory-login.md");
+  const loginPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-login.md");
   writeFileSync(loginPath, SOLOMEMORY_LOGIN_COMMAND);
   console.log(`✓ Created /solomemory-login command`);
 
@@ -336,9 +361,9 @@ function createCommands(): boolean {
 function isOhMyOpencodeInstalled(): boolean {
   const configPath = findOpencodeConfig();
   if (!configPath) return false;
-  
+
   try {
-    const content = readFileSync(configPath, "utf-8");
+    const content = readFileSync(configPath, "utf8");
     return content.includes("oh-my-opencode");
   } catch {
     return false;
@@ -347,11 +372,14 @@ function isOhMyOpencodeInstalled(): boolean {
 
 function isAutoCompactAlreadyDisabled(): boolean {
   if (!existsSync(OH_MY_OPENCODE_CONFIG)) return false;
-  
+
   try {
-    const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf-8");
-    const config = JSON.parse(content);
-    const disabledHooks = config.disabled_hooks as string[] | undefined;
+    const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
+    const parsed: unknown = JSON.parse(content);
+    if (!isOhMyOpencodeConfig(parsed)) {
+      return false;
+    }
+    const disabledHooks = parsed.disabled_hooks;
     return disabledHooks?.includes("anthropic-context-window-limit-recovery") ?? false;
   } catch {
     return false;
@@ -360,24 +388,27 @@ function isAutoCompactAlreadyDisabled(): boolean {
 
 function disableAutoCompactHook(): boolean {
   try {
-    let config: Record<string, unknown> = {};
-    
+    let config: OhMyOpencodeConfig = {};
+
     if (existsSync(OH_MY_OPENCODE_CONFIG)) {
-      const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf-8");
-      config = JSON.parse(content);
+      const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
+      const parsed: unknown = JSON.parse(content);
+      if (isOhMyOpencodeConfig(parsed)) {
+        config = parsed;
+      }
     }
-    
-    const disabledHooks = (config.disabled_hooks as string[]) || [];
+
+    const disabledHooks = config.disabled_hooks ?? [];
     if (!disabledHooks.includes("anthropic-context-window-limit-recovery")) {
       disabledHooks.push("anthropic-context-window-limit-recovery");
     }
     config.disabled_hooks = disabledHooks;
-    
+
     writeFileSync(OH_MY_OPENCODE_CONFIG, JSON.stringify(config, null, 2));
     console.log(`✓ Disabled anthropic-context-window-limit-recovery hook in oh-my-opencode.json`);
     return true;
-  } catch (err) {
-    console.error("✗ Failed to update oh-my-opencode.json:", err);
+  } catch (error) {
+    console.error("✗ Failed to update oh-my-opencode.json:", error);
     return false;
   }
 }
@@ -387,6 +418,7 @@ interface InstallOptions {
   disableAutoCompact: boolean;
 }
 
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function
 async function install(options: InstallOptions): Promise<number> {
   console.log("\n🧠 opencode-solomemory installer\n");
 
@@ -394,14 +426,14 @@ async function install(options: InstallOptions): Promise<number> {
 
   console.log("Step 1: Register plugin in OpenCode config");
   const configPath = findOpencodeConfig();
-  
+
   if (configPath) {
     if (options.tui) {
       const shouldModify = await confirm(rl!, `Add plugin to ${configPath}?`);
-      if (!shouldModify) {
-        console.log("Skipped.");
-      } else {
+      if (shouldModify) {
         addPluginToConfig(configPath);
+      } else {
+        console.log("Skipped.");
       }
     } else {
       addPluginToConfig(configPath);
@@ -409,10 +441,10 @@ async function install(options: InstallOptions): Promise<number> {
   } else {
     if (options.tui) {
       const shouldCreate = await confirm(rl!, "No OpenCode config found. Create one?");
-      if (!shouldCreate) {
-        console.log("Skipped.");
-      } else {
+      if (shouldCreate) {
         createNewConfig();
+      } else {
+        console.log("Skipped.");
       }
     } else {
       createNewConfig();
@@ -422,10 +454,10 @@ async function install(options: InstallOptions): Promise<number> {
   console.log("\nStep 2: Create /solomemory-init and /solomemory-login commands");
   if (options.tui) {
     const shouldCreate = await confirm(rl!, "Add solomemory commands?");
-    if (!shouldCreate) {
-      console.log("Skipped.");
-    } else {
+    if (shouldCreate) {
       createCommands();
+    } else {
+      console.log("Skipped.");
     }
   } else {
     createCommands();
@@ -434,22 +466,29 @@ async function install(options: InstallOptions): Promise<number> {
   if (isOhMyOpencodeInstalled()) {
     console.log("\nStep 3: Configure Oh My OpenCode");
     console.log("Detected Oh My OpenCode plugin.");
-    console.log("Solo Memory handles context compaction, so the built-in context-window-limit-recovery hook should be disabled.");
-    
+    console.log(
+      "Solo Memory handles context compaction, so the built-in context-window-limit-recovery hook should be disabled.",
+    );
+
     if (isAutoCompactAlreadyDisabled()) {
       console.log("✓ anthropic-context-window-limit-recovery hook already disabled");
     } else {
       if (options.tui) {
-        const shouldDisable = await confirm(rl!, "Disable anthropic-context-window-limit-recovery hook to let Solo Memory handle context?");
-        if (!shouldDisable) {
-          console.log("Skipped.");
-        } else {
+        const shouldDisable = await confirm(
+          rl!,
+          "Disable anthropic-context-window-limit-recovery hook to let Solo Memory handle context?",
+        );
+        if (shouldDisable) {
           disableAutoCompactHook();
+        } else {
+          console.log("Skipped.");
         }
       } else if (options.disableAutoCompact) {
         disableAutoCompactHook();
       } else {
-        console.log("Skipped. Use --disable-context-recovery to disable the hook in non-interactive mode.");
+        console.log(
+          "Skipped. Use --disable-context-recovery to disable the hook in non-interactive mode.",
+        );
       }
     }
   }
@@ -481,10 +520,10 @@ async function login(): Promise<number> {
 
   const rl = createReadline();
   console.log("\n🔑 Solo Memory API Key Setup\n");
-  
+
   const apiKey = await prompt(rl, "Enter your API key: ");
   rl.close();
-  
+
   if (!apiKey) {
     console.error("\n✗ No API key provided");
     return 1;
@@ -499,11 +538,10 @@ async function login(): Promise<number> {
 function logout(): number {
   if (clearCredentials()) {
     console.log("✓ Logged out. Credentials cleared.");
-    return 0;
   } else {
     console.log("No credentials found.");
-    return 0;
   }
+  return 0;
 }
 
 function printHelp(): void {
@@ -532,27 +570,41 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  if (args[0] === "install") {
-    const noTui = args.includes("--no-tui");
-    const disableAutoCompact = args.includes("--disable-context-recovery");
-    const code = await install({ tui: !noTui, disableAutoCompact });
-    process.exit(code);
-  } else if (args[0] === "setup") {
-    console.log("Note: 'setup' is deprecated. Use 'install' instead.\n");
-    const noTui = args.includes("--no-tui");
-    const disableAutoCompact = args.includes("--disable-context-recovery");
-    const code = await install({ tui: !noTui, disableAutoCompact });
-    process.exit(code);
-  } else if (args[0] === "login") {
-    const code = await login();
-    process.exit(code);
-  } else if (args[0] === "logout") {
-    process.exit(logout());
-  } else {
-    console.error(`Unknown command: ${args[0]}`);
-    printHelp();
-    process.exit(1);
+  switch (args[0]) {
+    case "install": {
+      const noTui = args.includes("--no-tui");
+      const disableAutoCompact = args.includes("--disable-context-recovery");
+      const code = await install({ tui: !noTui, disableAutoCompact });
+      process.exit(code);
+
+      break;
+    }
+    case "setup": {
+      console.log("Note: 'setup' is deprecated. Use 'install' instead.\n");
+      const noTui = args.includes("--no-tui");
+      const disableAutoCompact = args.includes("--disable-context-recovery");
+      const code = await install({ tui: !noTui, disableAutoCompact });
+      process.exit(code);
+
+      break;
+    }
+    case "login": {
+      const code = await login();
+      process.exit(code);
+
+      break;
+    }
+    case "logout": {
+      process.exit(logout());
+
+      break;
+    }
+    default: {
+      console.error(`Unknown command: ${args[0]}`);
+      printHelp();
+      process.exit(1);
+    }
   }
 }
 
-main();
+void main();

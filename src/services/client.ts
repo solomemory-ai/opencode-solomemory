@@ -9,14 +9,12 @@ import type {
   MetadataFilter,
 } from "../types/index.js";
 
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 30_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)),
   ]);
 }
 
@@ -70,12 +68,10 @@ function isSearchResponse(data: unknown): data is SearchResponse {
 function isProfileResponse(data: unknown): data is ProfileResponse {
   if (!data || typeof data !== "object") return false;
   const obj = data as Record<string, unknown>;
-  return obj.profile === null || (
-    typeof obj.profile === "object" &&
-    obj.profile !== null &&
-    Array.isArray((obj.profile as Record<string, unknown>).static) &&
-    Array.isArray((obj.profile as Record<string, unknown>).dynamic)
-  );
+  if (obj.profile === null) return true;
+  if (typeof obj.profile !== "object") return false;
+  const profile = obj.profile as Record<string, unknown>;
+  return Array.isArray(profile.static) && Array.isArray(profile.dynamic);
 }
 
 function isAddMemoryResponse(data: unknown): data is AddMemoryResponse {
@@ -99,13 +95,12 @@ function isConversationIngestResponse(data: unknown): data is ConversationIngest
 function isJobStatus(data: unknown): data is JobStatus {
   if (!data || typeof data !== "object") return false;
   const obj = data as Record<string, unknown>;
-  return typeof obj.id === "string" && typeof obj.status === "string" && typeof obj.progress === "number";
+  return (
+    typeof obj.id === "string" && typeof obj.status === "string" && typeof obj.progress === "number"
+  );
 }
 
-async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   if (!isConfigured()) {
     throw new Error("SOLOMEMORY_API_KEY not set");
   }
@@ -128,7 +123,7 @@ async function apiRequest<T>(
   return response.json() as Promise<T>;
 }
 
-type SearchMemoriesResult = 
+type SearchMemoriesResult =
   | { success: true; results: SearchResult[]; total: number; timing: number }
   | { success: false; error: string; results: []; total: 0; timing: 0 };
 
@@ -140,27 +135,28 @@ type AddMemoryResult =
   | { success: true; id: string; status: string }
   | { success: false; error: string };
 
-type DeleteMemoryResult =
-  | { success: true }
-  | { success: false; error: string };
+type DeleteMemoryResult = { success: true } | { success: false; error: string };
 
 type ListMemoriesResult =
   | { success: true; memories: Memory[]; pagination: ListMemoriesResponse["pagination"] }
-  | { success: false; error: string; memories: []; pagination: { currentPage: 1; totalItems: 0; totalPages: 0 } };
+  | {
+      success: false;
+      error: string;
+      memories: [];
+      pagination: { currentPage: 1; totalItems: 0; totalPages: 0 };
+    };
 
 type IngestConversationResult =
   | { success: true; id: string; conversationId: string; status: string }
   | { success: false; error: string };
 
-type GetJobStatusResult =
-  | { success: true; job: JobStatus }
-  | { success: false; error: string };
+type GetJobStatusResult = { success: true; job: JobStatus } | { success: false; error: string };
 
 export class SolomemoryClient {
   async searchMemories(
     query: string,
     containerTag: string,
-    options?: { metadataFilters?: MetadataFilter[]; limit?: number }
+    options?: { metadataFilters?: MetadataFilter[]; limit?: number },
   ): Promise<SearchMemoriesResult> {
     log("searchMemories: start", { containerTag, hasFilters: !!options?.metadataFilters });
     try {
@@ -178,7 +174,7 @@ export class SolomemoryClient {
           method: "POST",
           body: JSON.stringify(body),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isSearchResponse(result)) {
         throw new Error("Invalid search response format");
@@ -197,12 +193,9 @@ export class SolomemoryClient {
     try {
       const params = new URLSearchParams();
       if (query) params.append("q", query);
-      
+
       const url = params.toString() ? `/profile?${params.toString()}` : "/profile";
-      const result = await withTimeout(
-        apiRequest<unknown>(url, { method: "GET" }),
-        TIMEOUT_MS
-      );
+      const result = await withTimeout(apiRequest<unknown>(url, { method: "GET" }), TIMEOUT_MS);
       if (!isProfileResponse(result)) {
         throw new Error("Invalid profile response format");
       }
@@ -217,7 +210,7 @@ export class SolomemoryClient {
 
   async searchUserMemories(
     query: string,
-    options?: { limit?: number }
+    options?: { limit?: number },
   ): Promise<SearchMemoriesResult> {
     log("searchUserMemories: start", { query });
     try {
@@ -230,7 +223,7 @@ export class SolomemoryClient {
             limit: options?.limit ?? CONFIG.maxMemories,
           }),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isSearchResponse(result)) {
         throw new Error("Invalid search response format");
@@ -252,7 +245,7 @@ export class SolomemoryClient {
           method: "POST",
           body: JSON.stringify({ limit, order: "desc", sort: "createdAt" }),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isListMemoriesResponse(result)) {
         throw new Error("Invalid list memories response format");
@@ -262,14 +255,19 @@ export class SolomemoryClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log("listUserMemories: error", { error: errorMessage });
-      return { success: false as const, error: errorMessage, memories: [], pagination: { currentPage: 1, totalItems: 0, totalPages: 0 } };
+      return {
+        success: false as const,
+        error: errorMessage,
+        memories: [],
+        pagination: { currentPage: 1, totalItems: 0, totalPages: 0 },
+      };
     }
   }
 
   async addMemory(
     content: string,
     containerTag: string,
-    metadata?: { type?: MemoryType; tool?: string; [key: string]: unknown }
+    metadata?: { type?: MemoryType; tool?: string; [key: string]: unknown },
   ): Promise<AddMemoryResult> {
     log("addMemory: start", { containerTag, contentLength: content.length });
     try {
@@ -282,7 +280,7 @@ export class SolomemoryClient {
             metadata,
           }),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isAddMemoryResponse(result)) {
         throw new Error("Invalid add memory response format");
@@ -303,7 +301,7 @@ export class SolomemoryClient {
         apiRequest<void>(`/memories/${memoryId}`, {
           method: "DELETE",
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       log("deleteMemory: success", { memoryId });
       return { success: true };
@@ -327,7 +325,7 @@ export class SolomemoryClient {
             sort: "createdAt",
           }),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isListMemoriesResponse(result)) {
         throw new Error("Invalid list memories response format");
@@ -337,7 +335,12 @@ export class SolomemoryClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log("listMemories: error", { error: errorMessage });
-      return { success: false as const, error: errorMessage, memories: [], pagination: { currentPage: 1, totalItems: 0, totalPages: 0 } };
+      return {
+        success: false as const,
+        error: errorMessage,
+        memories: [],
+        pagination: { currentPage: 1, totalItems: 0, totalPages: 0 },
+      };
     }
   }
 
@@ -345,7 +348,7 @@ export class SolomemoryClient {
     conversationId: string,
     messages: ConversationMessage[],
     containerTags: string[],
-    metadata?: Record<string, string | number | boolean>
+    metadata?: Record<string, string | number | boolean>,
   ): Promise<IngestConversationResult> {
     const payload = { conversationId, messages, containerTags, metadata };
     log("ingestConversation: start", { conversationId, messageCount: messages.length });
@@ -356,12 +359,16 @@ export class SolomemoryClient {
           method: "POST",
           body: JSON.stringify(payload),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isConversationIngestResponse(response)) {
         throw new Error("Invalid conversation ingest response format");
       }
-      log("ingestConversation: queued", { conversationId, jobId: response.id, status: response.status });
+      log("ingestConversation: queued", {
+        conversationId,
+        jobId: response.id,
+        status: response.status,
+      });
       return { success: true as const, ...response };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -374,7 +381,7 @@ export class SolomemoryClient {
     try {
       const result = await withTimeout(
         apiRequest<unknown>(`/conversations/jobs/${jobId}`, { method: "GET" }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isJobStatus(result)) {
         throw new Error("Invalid job status response format");
@@ -390,7 +397,7 @@ export class SolomemoryClient {
     query: string,
     containerTags: string[],
     metadataFilters: MetadataFilter[],
-    limit?: number
+    limit?: number,
   ): Promise<SearchMemoriesResult> {
     log("searchByMetadata: start", { containerTags, filters: metadataFilters });
     try {
@@ -405,7 +412,7 @@ export class SolomemoryClient {
             limit: limit ?? CONFIG.maxMemories,
           }),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isSearchResponse(result)) {
         throw new Error("Invalid search response format");
@@ -421,7 +428,7 @@ export class SolomemoryClient {
 
   async searchGlobal(
     query: string,
-    options?: { metadataFilters?: MetadataFilter[]; limit?: number }
+    options?: { metadataFilters?: MetadataFilter[]; limit?: number },
   ): Promise<SearchMemoriesResult> {
     log("searchGlobal: start", { hasFilters: !!options?.metadataFilters });
     try {
@@ -438,7 +445,7 @@ export class SolomemoryClient {
           method: "POST",
           body: JSON.stringify(body),
         }),
-        TIMEOUT_MS
+        TIMEOUT_MS,
       );
       if (!isSearchResponse(result)) {
         throw new Error("Invalid search response format");

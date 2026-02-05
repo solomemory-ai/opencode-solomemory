@@ -28,13 +28,13 @@ export function extractTextFromParts(parts: Part[]): string {
     .join("\n");
 }
 
-export function extractToolInfoFromParts(parts: Part[]): Array<{ tool: string; state: string }> {
+export function extractToolInfoFromParts(parts: Part[]): { tool: string; state: string }[] {
   return parts
     .filter((p): p is Part & { type: "tool"; tool: string } => p.type === "tool" && "tool" in p)
     .map((p) => ({
       tool: (p as Part & { type: "tool"; tool: string; state?: { status?: string } }).tool,
       state: String(
-        (p as Part & { type: "tool"; state?: { status?: string } }).state?.status ?? "unknown"
+        (p as Part & { type: "tool"; state?: { status?: string } }).state?.status ?? "unknown",
       ),
     }));
 }
@@ -45,9 +45,7 @@ export function extractContentFromParts(parts: Part[]): string {
 
   if (toolParts.length === 0) return textContent;
 
-  const toolSummary = toolParts
-    .map((t) => `[tool: ${t.tool} (${t.state})]`)
-    .join(", ");
+  const toolSummary = toolParts.map((t) => `[tool: ${t.tool} (${t.state})]`).join(", ");
 
   return textContent ? `${textContent}\n${toolSummary}` : toolSummary;
 }
@@ -62,9 +60,11 @@ export function isNonSyntheticMessage(msg: SessionMessage): boolean {
 
 /** @deprecated Use isNonSyntheticMessage instead */
 export function isUserOrAssistantMessage(msg: SessionMessage): boolean {
-  return !hasSyntheticPart(msg.parts) && (msg.info.role === "user" || msg.info.role === "assistant");
+  return (
+    !hasSyntheticPart(msg.parts) && (msg.info.role === "user" || msg.info.role === "assistant")
+  );
 }
 
 export function filterValidMessages(messages: SessionMessage[]): SessionMessage[] {
-  return messages.filter(isNonSyntheticMessage);
+  return messages.filter((msg) => isNonSyntheticMessage(msg));
 }

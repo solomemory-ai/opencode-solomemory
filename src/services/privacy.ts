@@ -3,7 +3,7 @@ export function containsPrivateTag(content: string): boolean {
 }
 
 export function stripPrivateContent(content: string): string {
-  return content.replace(/<private>[\s\S]*?<\/private>/gi, "[REDACTED]");
+  return content.replaceAll(/<private>[\s\S]*?<\/private>/gi, "[REDACTED]");
 }
 
 export function isFullyPrivate(content: string): boolean {

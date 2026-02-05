@@ -20,7 +20,11 @@ import {
   getDirName,
   isMonorepo,
 } from "./services/tags.js";
-import { isNonSyntheticMessage, extractTextFromParts, type SessionMessage } from "./services/messages.js";
+import {
+  isNonSyntheticMessage,
+  extractTextFromParts,
+  type SessionMessage,
+} from "./services/messages.js";
 
 import { isConfigured, CONFIG } from "./config.js";
 import { log } from "./services/logger.js";
@@ -33,10 +37,21 @@ interface ConversationSyncState {
 
 const sessionSyncState = new Map<string, ConversationSyncState>();
 
+function findLastUserMessageIndex(messages: unknown[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i] as SessionMessage;
+    if (msg.info.role === "user" && isNonSyntheticMessage(msg)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// eslint-disable-next-line max-lines-per-function, @typescript-eslint/require-await
 export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
   const { directory } = ctx;
   const tags = getTags(directory);
-  const projectScopeTag = tags.repository || tags.project;
+  const projectScopeTag = tags.repository ?? tags.project;
   const injectedSessions = new Set<string>();
   log("Plugin init", { directory, tags, projectScopeTag, configured: isConfigured() });
 
@@ -52,7 +67,7 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
 
       try {
         const textParts = output.parts.filter(
-          (p): p is Part & { type: "text"; text: string } => p.type === "text"
+          (p): p is Part & { type: "text"; text: string } => p.type === "text",
         );
 
         if (textParts.length === 0) {
@@ -86,7 +101,9 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
 
           const profile = profileResult.success ? profileResult : null;
           const userMemories = userMemoriesResult.success ? userMemoriesResult : { results: [] };
-          const projectMemoriesList = projectMemoriesListResult.success ? projectMemoriesListResult : { memories: [] };
+          const projectMemoriesList = projectMemoriesListResult.success
+            ? projectMemoriesListResult
+            : { memories: [] };
 
           const projectMemories = {
             results: (projectMemoriesList.memories || []).map((m: Memory) => ({
@@ -100,11 +117,7 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
             timing: 0,
           };
 
-          const memoryContext = formatContextForPrompt(
-            profile,
-            userMemories,
-            projectMemories
-          );
+          const memoryContext = formatContextForPrompt(profile, userMemories, projectMemories);
 
           if (memoryContext) {
             const contextPart: Part = {
@@ -125,7 +138,6 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
             });
           }
         }
-
       } catch (error) {
         log("chat.message: ERROR", { error: String(error) });
       }
@@ -152,13 +164,12 @@ SCOPES:
 
 EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
         args: {
-          mode: tool.schema
-            .enum(["search", "profile", "list", "help"])
-            .optional(),
+          mode: tool.schema.enum(["search", "profile", "list", "help"]).optional(),
           query: tool.schema.string().optional(),
           scope: tool.schema.enum(["user", "project"]).optional(),
           limit: tool.schema.number().optional(),
         },
+        // eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function
         async execute(args: {
           mode?: string;
           query?: string;
@@ -168,19 +179,19 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
           if (!isConfigured()) {
             return JSON.stringify({
               success: false,
-              error:
-                "SOLOMEMORY_API_KEY not set. Set it in your environment to use Solo Memory.",
+              error: "SOLOMEMORY_API_KEY not set. Set it in your environment to use Solo Memory.",
             });
           }
 
-          const mode = args.mode || "help";
+          const mode = args.mode ?? "help";
 
           try {
             switch (mode) {
               case "help": {
                 return JSON.stringify({
                   success: true,
-                  message: "Solo Memory Usage Guide - Memories are automatically saved from conversations",
+                  message:
+                    "Solo Memory Usage Guide - Memories are automatically saved from conversations",
                   commands: [
                     {
                       command: "search",
@@ -227,10 +238,7 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
                 }
 
                 if (scope === "project") {
-                  const result = await solomemoryClient.searchMemories(
-                    args.query,
-                    projectScopeTag
-                  );
+                  const result = await solomemoryClient.searchMemories(args.query, projectScopeTag);
                   if (!result.success) {
                     return JSON.stringify({
                       success: false,
@@ -267,15 +275,15 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
                     ...r,
                     scope: "project" as const,
                   })),
-                ].sort((a, b) => b.similarity - a.similarity);
+                ].toSorted((a, b) => b.similarity - a.similarity);
 
                 return JSON.stringify({
                   success: true,
                   query: args.query,
                   count: combined.length,
-                  results: combined.slice(0, args.limit || 10).map((r) => ({
+                  results: combined.slice(0, args.limit ?? 10).map((r) => ({
                     id: r.id,
-                    content: r.memory || r.chunk,
+                    content: r.memory ?? r.chunk,
                     similarity: Math.round(r.similarity * 100),
                     scope: r.scope,
                   })),
@@ -295,22 +303,19 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
                 return JSON.stringify({
                   success: true,
                   profile: {
-                    static: result.profile?.static || [],
-                    dynamic: result.profile?.dynamic || [],
+                    static: result.profile?.static ?? [],
+                    dynamic: result.profile?.dynamic ?? [],
                   },
                 });
               }
 
               case "list": {
-                const scope = args.scope || "project";
-                const limit = args.limit || 20;
+                const scope = args.scope ?? "project";
+                const limit = args.limit ?? 20;
 
-                let result;
-                if (scope === "user") {
-                  result = await solomemoryClient.listUserMemories(limit);
-                } else {
-                  result = await solomemoryClient.listMemories(projectScopeTag, limit);
-                }
+                const result = await (scope === "user"
+                  ? solomemoryClient.listUserMemories(limit)
+                  : solomemoryClient.listMemories(projectScopeTag, limit));
 
                 if (!result.success) {
                   return JSON.stringify({
@@ -333,11 +338,12 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
                 });
               }
 
-              default:
+              default: {
                 return JSON.stringify({
                   success: false,
                   error: `Unknown mode: ${mode}`,
                 });
+              }
             }
           } catch (error) {
             return JSON.stringify({
@@ -349,6 +355,7 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
       }),
     },
 
+    // eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function
     event: async (input: { event: { type: string; properties?: unknown } }) => {
       if (input.event.type === "session.deleted") {
         const props = input.event.properties as { info?: { id?: string } } | undefined;
@@ -369,18 +376,11 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
 
         try {
           const messagesResponse = await ctx.client.session.messages({ path: { id: sessionID } });
-          const allMessages = messagesResponse.data || [];
+          const allMessages = messagesResponse.data ?? [];
 
           let syncState = sessionSyncState.get(sessionID);
           if (!syncState) {
-            let lastUserIndex = -1;
-            for (let i = allMessages.length - 1; i >= 0; i--) {
-              const msg = allMessages[i] as SessionMessage;
-              if (msg.info.role === "user" && isNonSyntheticMessage(msg)) {
-                lastUserIndex = i;
-                break;
-              }
-            }
+            const lastUserIndex = findLastUserMessageIndex(allMessages);
             syncState = {
               lastSyncedMessageIndex: lastUserIndex - 1,
               conversationId: `${CONFIG.platformIdentifier}_${sessionID}`,
@@ -395,7 +395,9 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
             return;
           }
 
-          const validMessages = (newMessages as SessionMessage[]).filter(isNonSyntheticMessage);
+          const validMessages = (newMessages as SessionMessage[]).filter((msg) =>
+            isNonSyntheticMessage(msg),
+          );
 
           if (validMessages.length === 0) {
             log("event: no valid messages after filtering", { sessionID });
@@ -403,10 +405,12 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
             return;
           }
 
-          const rawMessages: ConversationMessage[] = validMessages.map((msg) => ({
-            role: msg.info.role,
-            content: extractTextFromParts(msg.parts),
-          })).filter((m) => m.content.trim().length > 0);
+          const rawMessages: ConversationMessage[] = validMessages
+            .map((msg) => ({
+              role: msg.info.role,
+              content: extractTextFromParts(msg.parts),
+            }))
+            .filter((m) => m.content.trim().length > 0);
 
           if (rawMessages.length === 0) {
             log("event: no messages with content after extraction", { sessionID });
@@ -431,20 +435,20 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
             directory,
             cwd: getDirName(directory),
             parentDir: getParentDirName(directory),
-            repository: gitRemote || "",
-            repoOwner: repoOwner || "",
-            repoName: repoName || "",
-            branch: conversationTags.metadata.gitBranch || "",
-            gitAuthor: getGitAuthor(directory) || "",
-            gitStatus: getGitStatus(directory) || "",
-            workspace: conversationTags.metadata.workspaceName || "",
-            workspaceType: conversationTags.metadata.workspaceType || "",
+            repository: gitRemote ?? "",
+            repoOwner: repoOwner ?? "",
+            repoName: repoName ?? "",
+            branch: conversationTags.metadata.gitBranch ?? "",
+            gitAuthor: getGitAuthor(directory) ?? "",
+            gitStatus: getGitStatus(directory) ?? "",
+            workspace: conversationTags.metadata.workspaceName ?? "",
+            workspaceType: conversationTags.metadata.workspaceType ?? "",
             isMonorepo: isMonorepo(directory),
             machine: conversationTags.metadata.machineHostname,
             os: getOS(),
             nodeVersion: getNodeVersion(),
-            language: detectLanguage(directory) || "",
-            packageManager: detectPackageManager(directory) || "",
+            language: detectLanguage(directory) ?? "",
+            packageManager: detectPackageManager(directory) ?? "",
           };
 
           if (session?.title) {
@@ -455,7 +459,7 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
             syncState.conversationId,
             rawMessages,
             conversationTags.containerTags,
-            metadata
+            metadata,
           );
 
           if (result.success) {
@@ -485,18 +489,18 @@ EXAMPLE: {mode: "search", query: "how to run tests", scope: "project"}`,
 function formatSearchResults(
   query: string,
   scope: string | undefined,
-  results: { results?: Array<{ id: string; memory?: string; chunk?: string; similarity: number }> },
-  limit?: number
+  results: { results?: { id: string; memory?: string; chunk?: string; similarity: number }[] },
+  limit?: number,
 ): string {
-  const memoryResults = results.results || [];
+  const memoryResults = results.results ?? [];
   return JSON.stringify({
     success: true,
     query,
     scope,
     count: memoryResults.length,
-    results: memoryResults.slice(0, limit || 10).map((r) => ({
+    results: memoryResults.slice(0, limit ?? 10).map((r) => ({
       id: r.id,
-      content: r.memory || r.chunk,
+      content: r.memory ?? r.chunk,
       similarity: Math.round(r.similarity * 100),
     })),
   });

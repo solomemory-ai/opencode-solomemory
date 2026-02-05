@@ -4,7 +4,7 @@
 
 ```bash
 ./scripts/release.sh patch   # 1.0.0 → 1.0.1
-./scripts/release.sh minor   # 1.0.0 → 1.1.0  
+./scripts/release.sh minor   # 1.0.0 → 1.1.0
 ./scripts/release.sh major   # 1.0.0 → 2.0.0
 
 git push && git push --tags

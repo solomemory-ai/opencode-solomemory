@@ -26,10 +26,10 @@ interface MemoriesResponseMinimal {
 
 function formatTimeAgo(dateStr: string | undefined): string {
   if (!dateStr) return "";
-  
+
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "";
-  
+  if (Number.isNaN(date.getTime())) return "";
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -39,7 +39,7 @@ function formatTimeAgo(dateStr: string | undefined): string {
   const diffWeek = Math.floor(diffDay / 7);
   const diffMonth = Math.floor(diffDay / 30);
   const diffYear = Math.floor(diffDay / 365);
-  
+
   if (diffYear > 0) return `${diffYear}y ago`;
   if (diffMonth > 0) return `${diffMonth}mo ago`;
   if (diffWeek > 0) return `${diffWeek}w ago`;
@@ -49,10 +49,11 @@ function formatTimeAgo(dateStr: string | undefined): string {
   return "just now";
 }
 
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity
 export function formatContextForPrompt(
   profile: ProfileResponse | null,
   userMemories: MemoriesResponseMinimal,
-  projectMemories: MemoriesResponseMinimal
+  projectMemories: MemoriesResponseMinimal,
 ): string {
   const parts: string[] = ["[SOLOMEMORY - Retrieved memories about user/project]"];
 
@@ -61,52 +62,54 @@ export function formatContextForPrompt(
 
     if (staticFacts.length > 0) {
       parts.push("\nUser Profile:");
-      staticFacts.slice(0, CONFIG.maxProfileItems).forEach((item: ProfileFact) => {
+      for (const item of staticFacts.slice(0, CONFIG.maxProfileItems)) {
         const timeAgo = formatTimeAgo(item.validAt);
         const timeStr = timeAgo ? ` (${timeAgo})` : "";
         parts.push(`-${timeStr} ${item.fact}`);
-      });
+      }
     }
 
     if (dynamicFacts.length > 0) {
       parts.push("\nRecent Context:");
-      dynamicFacts.slice(0, CONFIG.maxProfileItems).forEach((item: ProfileFact) => {
+      for (const item of dynamicFacts.slice(0, CONFIG.maxProfileItems)) {
         const timeAgo = formatTimeAgo(item.validAt);
         const timeStr = timeAgo ? ` (${timeAgo})` : "";
         parts.push(`-${timeStr} ${item.fact}`);
-      });
+      }
     }
   }
 
-  const projectResults = projectMemories.results || [];
+  const projectResults = projectMemories.results ?? [];
   if (projectResults.length > 0) {
     parts.push("\nProject Knowledge:");
-    projectResults.forEach((mem) => {
+    for (const mem of projectResults) {
       const similarity = Math.round(mem.similarity * 100);
-      const content = mem.memory || mem.chunk || "";
-      const timeAgo = formatTimeAgo(mem.validAt || mem.createdAt);
+      const content = mem.memory ?? mem.chunk ?? "";
+      const timeAgo = formatTimeAgo(mem.validAt ?? mem.createdAt);
       const timeStr = timeAgo ? ` (${timeAgo})` : "";
       parts.push(`- [${similarity}%]${timeStr} ${content}`);
-    });
+    }
   }
 
-  const userResults = userMemories.results || [];
+  const userResults = userMemories.results ?? [];
   if (userResults.length > 0) {
     parts.push("\nRelevant Memories:");
-    userResults.forEach((mem) => {
+    for (const mem of userResults) {
       const similarity = Math.round(mem.similarity * 100);
-      const content = mem.memory || mem.chunk || "";
-      const timeAgo = formatTimeAgo(mem.validAt || mem.createdAt);
+      const content = mem.memory ?? mem.chunk ?? "";
+      const timeAgo = formatTimeAgo(mem.validAt ?? mem.createdAt);
       const timeStr = timeAgo ? ` (${timeAgo})` : "";
       parts.push(`- [${similarity}%]${timeStr} ${content}`);
-    });
+    }
   }
 
   if (parts.length === 1) {
     return "";
   }
 
-  parts.push("\n[To find more context: use solomemory tool with {mode: 'search', query: '<your question>'}]");
+  parts.push(
+    "\n[To find more context: use solomemory tool with {mode: 'search', query: '<your question>'}]",
+  );
 
   return parts.join("\n");
 }

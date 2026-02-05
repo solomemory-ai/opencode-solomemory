@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 import { homedir } from "node:os";
 import { stripJsoncComments } from "./services/jsonc.js";
 import { loadCredentials } from "./services/auth.js";
 
-const CONFIG_DIR = join(homedir(), ".config", "opencode");
+const CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const CONFIG_FILES = [
-  join(CONFIG_DIR, "solomemory.jsonc"),
-  join(CONFIG_DIR, "solomemory.json"),
+  path.join(CONFIG_DIR, "solomemory.jsonc"),
+  path.join(CONFIG_DIR, "solomemory.json"),
 ];
 
 const DEFAULT_API_URL = "https://api.solomemory.com";
@@ -35,14 +35,15 @@ const DEFAULTS = {
   containerTagPrefix: "opencode",
   platformIdentifier: "opencode",
   autoSyncConversations: true,
-  filterPrompt: "You are a stateful coding agent. Remember all the information, including but not limited to user's coding preferences, tech stack, behaviours, workflows, and any other relevant details.",
+  filterPrompt:
+    "You are a stateful coding agent. Remember all the information, including but not limited to user's coding preferences, tech stack, behaviours, workflows, and any other relevant details.",
 } as const;
 
 function loadConfigFromFile(): SolomemoryConfig {
-  for (const path of CONFIG_FILES) {
-    if (existsSync(path)) {
+  for (const filePath of CONFIG_FILES) {
+    if (existsSync(filePath)) {
       try {
-        const content = readFileSync(path, "utf-8");
+        const content = readFileSync(filePath, "utf8");
         const json = stripJsoncComments(content);
         return JSON.parse(json) as SolomemoryConfig;
       } catch {
@@ -59,20 +60,17 @@ let _apiUrl: string | undefined;
 let _config: RuntimeConfig | null = null;
 let _initialized = false;
 
+// eslint-disable-next-line complexity
 function ensureInitialized(): void {
   if (_initialized) return;
   _initialized = true;
-  
+
   _fileConfig = loadConfigFromFile();
-  
-  _apiKey = process.env.SOLOMEMORY_API_KEY 
-    ?? _fileConfig.apiKey 
-    ?? loadCredentials()?.apiKey;
-  
-  _apiUrl = process.env.SOLOMEMORY_API_URL 
-    ?? _fileConfig.apiUrl 
-    ?? DEFAULT_API_URL;
-  
+
+  _apiKey = process.env.SOLOMEMORY_API_KEY ?? _fileConfig.apiKey ?? loadCredentials()?.apiKey;
+
+  _apiUrl = process.env.SOLOMEMORY_API_URL ?? _fileConfig.apiUrl ?? DEFAULT_API_URL;
+
   _config = {
     similarityThreshold: _fileConfig.similarityThreshold ?? DEFAULTS.similarityThreshold,
     maxMemories: _fileConfig.maxMemories ?? DEFAULTS.maxMemories,
@@ -118,6 +116,7 @@ export function getConfig(): RuntimeConfig {
 }
 
 export const CONFIG: RuntimeConfig = new Proxy({} as RuntimeConfig, {
+  // eslint-disable-next-line sonarjs/function-return-type
   get(_target, prop: keyof RuntimeConfig) {
     return getConfig()[prop];
   },
