@@ -165,6 +165,13 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
     configured: isConfigured(),
   });
 
+  void ctx.client.tui.showToast({
+    body: {
+      message: `oc-solomemory v${version}`,
+      variant: "info",
+    },
+  });
+
   if (!isConfigured()) {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");
   }
