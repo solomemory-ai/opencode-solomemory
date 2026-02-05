@@ -113,6 +113,5 @@ bun dev                  # tsc --watch
 
 - **No automated tests** — no jest/vitest, manual QA only
 - CLI install command modifies opencode config AND creates slash commands (`/solomemory-init`, `/solomemory-login`)
-- CLI can detect oh-my-opencode and optionally disable its `anthropic-context-window-limit-recovery` hook
 - Release: `scripts/release.sh {patch|minor|major}` → git tag → GitHub Actions publishes to npm
 - JSONC parser is hand-rolled state machine (handles comments, trailing commas, escaped quotes)

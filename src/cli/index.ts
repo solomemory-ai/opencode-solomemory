@@ -1,21 +1,17 @@
-import { login } from "./auth.js";
 import { install } from "./install.js";
 
 function printHelp(): void {
   console.log(`
 oc-solomemory - Persistent memory for OpenCode agents
 
-Commands:
-  install    Install and configure the plugin
-    --api-key=KEY                Set API key during install
-    --no-tui                     Non-interactive mode (for LLM agents)
-    --disable-context-recovery   Disable Oh My OpenCode's context hook
-  login      Configure API key
+Usage:
+  npx oc-solomemory@latest install <api-key>
+  npx oc-solomemory@latest install --api-key=<key>
 
-Examples:
-  npx oc-solomemory@latest install --api-key=your-key
-  npx oc-solomemory@latest install
-  npx oc-solomemory@latest login
+Options:
+  --no-tui   Non-interactive mode (for LLM agents)
+
+Get your API key at https://solomemory.com
 `);
 }
 
@@ -25,35 +21,26 @@ function shouldShowHelp(command: string | undefined): boolean {
 
 function parseApiKey(args: string[]): string | undefined {
   const flag = args.find((a: string) => a.startsWith("--api-key="));
-  if (flag === undefined) return undefined;
-  return flag.split("=")[1];
+  if (flag !== undefined) return flag.split("=")[1];
+
+  const positional = args.find((a: string) => !a.startsWith("-"));
+  return positional;
 }
 
 function handleInstallCommand(args: string[]): Promise<number> {
   const noTui = args.includes("--no-tui");
-  const disableAutoCompact = args.includes("--disable-context-recovery");
   const apiKey = parseApiKey(args);
-  return install({ tui: !noTui, disableAutoCompact, apiKey });
+  return install({ tui: !noTui, apiKey });
 }
 
-async function handleCommand(command: string, args: string[]): Promise<number> {
-  switch (command) {
-    case "install":
-    case "setup": {
-      if (command === "setup") {
-        console.log("Note: 'setup' is deprecated. Use 'install' instead.\n");
-      }
-      return handleInstallCommand(args);
-    }
-    case "login": {
-      return login();
-    }
-    default: {
-      console.error(`Unknown command: ${command}`);
-      printHelp();
-      return 1;
-    }
+function handleCommand(command: string, args: string[]): Promise<number> {
+  if (command === "install") {
+    return handleInstallCommand(args.slice(1));
   }
+
+  console.error(`Unknown command: ${command}`);
+  printHelp();
+  return Promise.resolve(1);
 }
 
 export async function main(): Promise<void> {

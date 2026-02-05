@@ -1,10 +1,9 @@
 # Configuration
 
-Create `~/.config/opencode/solomemory.jsonc`:
+Optional. Create `~/.config/opencode/solomemory.jsonc` to customize behavior:
 
 ```jsonc
 {
-  "apiKey": "your-api-key",
   "apiUrl": "https://api.solomemory.com",
   "maxMemories": 5,
   "maxProjectMemories": 10,
@@ -16,13 +15,12 @@ Create `~/.config/opencode/solomemory.jsonc`:
 }
 ```
 
-All fields optional. `SOLOMEMORY_API_KEY` env var takes precedence.
+API key is configured during install (`npx oc-solomemory@latest install --api-key=KEY`) and stored separately in `~/.solomemory-opencode/credentials.json`.
 
 ## Options
 
 | Option                  | Type    | Default                      | Description                                        |
 | ----------------------- | ------- | ---------------------------- | -------------------------------------------------- |
-| `apiKey`                | string  | —                            | API key (or use `SOLOMEMORY_API_KEY` env var)      |
 | `apiUrl`                | string  | `https://api.solomemory.com` | API endpoint                                       |
 | `maxMemories`           | number  | `5`                          | Max memories injected per search                   |
 | `maxProjectMemories`    | number  | `10`                         | Max project-scoped memories injected               |
@@ -31,14 +29,3 @@ All fields optional. `SOLOMEMORY_API_KEY` env var takes precedence.
 | `containerTagPrefix`    | string  | `opencode`                   | Prefix for memory container tags                   |
 | `platformIdentifier`    | string  | `opencode`                   | Platform identifier sent with synced conversations |
 | `autoSyncConversations` | boolean | `true`                       | Auto-sync conversations on session idle            |
-
-## Oh My OpenCode
-
-If using [Oh My OpenCode](https://github.com/code-yeongyu/oh-my-opencode), disable its compaction hook:
-
-```json
-// ~/.config/opencode/oh-my-opencode.json
-{
-  "disabled_hooks": ["anthropic-context-window-limit-recovery"]
-}
-```

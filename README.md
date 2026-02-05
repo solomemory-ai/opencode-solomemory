@@ -4,55 +4,52 @@
   <img src="https://raw.githubusercontent.com/solomemory-ai/.github/main/brand/logo-mark-black-transparent.png" alt="Solo Memory" width="120">
 </picture>
 
-# opencode-solomemory
+# Solo Memory for OpenCode
 
 [![npm version](https://img.shields.io/npm/v/oc-solomemory?color=blue&label=stable)](https://www.npmjs.com/package/oc-solomemory)
-[![npm dev](https://img.shields.io/npm/v/oc-solomemory/dev?color=orange&label=dev)](https://www.npmjs.com/package/oc-solomemory?activeTab=versions)
 [![npm downloads](https://img.shields.io/npm/dm/oc-solomemory)](https://www.npmjs.com/package/oc-solomemory)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Runtime-Bun-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
 
-Persistent memory plugin for [OpenCode](https://opencode.ai) — powered by [Solo Memory](https://solomemory.com).
+Persistent memory plugin for [OpenCode](https://opencode.ai). Your AI agent remembers across sessions and projects.
 
-Your AI agent remembers what you tell it — across sessions, across projects.
+[Solo Memory](https://solomemory.com) gives your coding agent long-term memory — preferences you've shared, decisions you've made, context from past sessions. It all carries forward automatically.
 
 ---
 
-## Features
+## Install
 
-- **Context injection** — Agent automatically receives your preferences and project knowledge at the start of every session
-- **Conversation sync** — Conversations are synced to Solo Memory, building long-term knowledge
-- **Memory scoping** — Memories are scoped to user, project, repo, and branch levels
+Get your API key at [solomemory.com](https://solomemory.com), then:
+
+```bash
+npx oc-solomemory@latest install --api-key=your-key
+```
+
+Restart OpenCode. Done.
+
+## What It Does
+
+- **Remembers context** — Your preferences, project decisions, and past conversations are injected into every new session
+- **Syncs conversations** — Sessions are synced to Solo Memory, building knowledge over time
+- **Scopes memory** — Memories are organized by user, project, repo, and branch
 - **Keyword detection** — Say "remember this" and it saves to memory
-- **Codebase indexing** — Run `/solomemory-init` to memorize your codebase structure
-
-## Quick Start
-
-```bash
-npx oc-solomemory@latest install
-export SOLOMEMORY_API_KEY="your-api-key"
-```
-
-For the latest dev build:
-
-```bash
-npx oc-solomemory@dev install
-```
-
-Get your API key at [solomemory.com](https://solomemory.com).
+- **Codebase indexing** — Run `/solomemory-init` to memorize your project structure
 
 ## How It Works
 
 ```
-Session starts → Plugin fetches your profile + relevant memories → Injects into agent context
-         ↓
-Agent works → Session ends → Conversation synced to Solo Memory
-         ↓
-Next session → Agent knows what you discussed before
+You start a session
+  → Plugin fetches your profile + relevant memories
+  → Agent has full context from day one
+
+You work with the agent
+  → Session syncs to Solo Memory when idle
+
+Next session
+  → Agent already knows what you discussed
 ```
 
-Memories are automatically scoped:
+### Memory Scopes
 
 | Scope       | What it remembers                    | Example                             |
 | ----------- | ------------------------------------ | ----------------------------------- |
@@ -63,20 +60,7 @@ Memories are automatically scoped:
 
 ## Configuration
 
-Optional. Create `~/.config/opencode/solomemory.jsonc`:
-
-```jsonc
-{
-  "apiKey": "your-api-key",
-  "maxMemories": 5,
-  "maxProjectMemories": 10,
-  "maxProfileItems": 5,
-  "injectProfile": true,
-  "autoSyncConversations": true,
-}
-```
-
-See [docs/CONFIG.md](docs/CONFIG.md) for all options.
+See [docs/CONFIG.md](docs/CONFIG.md) for advanced options.
 
 ## Contributing
 

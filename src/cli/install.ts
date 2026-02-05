@@ -5,13 +5,11 @@ import type { Interface as ReadlineInterface } from "node:readline";
 
 import { getCredentialsDir, saveCredentials } from "../services/auth.js";
 import { stripJsoncComments } from "../services/jsonc.js";
-import { login } from "./auth.js";
 import { confirm, createReadline } from "./prompt.js";
 import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.js";
 
 const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
-const OH_MY_OPENCODE_CONFIG = path.join(OPENCODE_CONFIG_DIR, "oh-my-opencode.json");
 const PLUGIN_NAME = "oc-solomemory@latest";
 const JSON_INDENT_SPACES = 2;
 const SEPARATOR_WIDTH = 50;
@@ -21,16 +19,7 @@ interface OpencodeConfig {
   [key: string]: unknown;
 }
 
-interface OhMyOpencodeConfig {
-  disabled_hooks?: string[];
-  [key: string]: unknown;
-}
-
 function isOpencodeConfig(value: unknown): value is OpencodeConfig {
-  return typeof value === "object" && value !== null;
-}
-
-function isOhMyOpencodeConfig(value: unknown): value is OhMyOpencodeConfig {
   return typeof value === "object" && value !== null;
 }
 
@@ -153,65 +142,6 @@ function createCommands(): boolean {
   return true;
 }
 
-function isOhMyOpencodeInstalled(): boolean {
-  const configPath = findOpencodeConfig();
-  if (configPath === null) return false;
-
-  try {
-    const content = readFileSync(configPath, "utf8");
-    return content.includes("oh-my-opencode");
-  } catch {
-    return false;
-  }
-}
-
-function isAutoCompactAlreadyDisabled(): boolean {
-  if (!existsSync(OH_MY_OPENCODE_CONFIG)) return false;
-
-  try {
-    const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
-    const parsed: unknown = JSON.parse(content);
-    if (!isOhMyOpencodeConfig(parsed)) {
-      return false;
-    }
-    const disabledHooks = parsed.disabled_hooks;
-    return disabledHooks?.includes("anthropic-context-window-limit-recovery") ?? false;
-  } catch {
-    return false;
-  }
-}
-
-function loadOhMyOpencodeConfig(): OhMyOpencodeConfig {
-  if (!existsSync(OH_MY_OPENCODE_CONFIG)) {
-    return {};
-  }
-
-  const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
-  const parsed: unknown = JSON.parse(content);
-  return isOhMyOpencodeConfig(parsed) ? parsed : {};
-}
-
-function addDisabledHook(config: OhMyOpencodeConfig): void {
-  const disabledHooks = config.disabled_hooks ?? [];
-  if (!disabledHooks.includes("anthropic-context-window-limit-recovery")) {
-    disabledHooks.push("anthropic-context-window-limit-recovery");
-  }
-  config.disabled_hooks = disabledHooks;
-}
-
-function disableAutoCompactHook(): boolean {
-  try {
-    const config = loadOhMyOpencodeConfig();
-    addDisabledHook(config);
-    writeFileSync(OH_MY_OPENCODE_CONFIG, JSON.stringify(config, null, JSON_INDENT_SPACES));
-    console.log(`✓ Disabled anthropic-context-window-limit-recovery hook in oh-my-opencode.json`);
-    return true;
-  } catch (error: unknown) {
-    console.error("✗ Failed to update oh-my-opencode.json:", error);
-    return false;
-  }
-}
-
 async function stepRegisterPlugin(rl: ReadlineInterface | null): Promise<void> {
   console.log("Step 1: Register plugin in OpenCode config");
   const configPath = findOpencodeConfig();
@@ -244,77 +174,28 @@ async function stepCreateCommands(rl: ReadlineInterface | null): Promise<void> {
   }
 }
 
-function printOhMyOpencodeInfo(): void {
-  console.log("\nStep 3: Configure Oh My OpenCode");
-  console.log("Detected Oh My OpenCode plugin.");
-  console.log(
-    "Solo Memory handles context compaction, so the built-in context-window-limit-recovery hook should be disabled.",
-  );
-}
-
-async function handleInteractiveOhMyOpencode(rl: ReadlineInterface): Promise<void> {
-  const shouldDisable = await confirm(
-    rl,
-    "Disable anthropic-context-window-limit-recovery hook to let Solo Memory handle context?",
-  );
-  if (shouldDisable) {
-    disableAutoCompactHook();
-  } else {
-    console.log("Skipped.");
-  }
-}
-
-async function stepConfigureOhMyOpencode(
-  rl: ReadlineInterface | null,
-  disableAutoCompact: boolean,
-): Promise<void> {
-  if (!isOhMyOpencodeInstalled()) return;
-
-  printOhMyOpencodeInfo();
-
-  if (isAutoCompactAlreadyDisabled()) {
-    console.log("✓ anthropic-context-window-limit-recovery hook already disabled");
-    return;
-  }
-
-  if (rl !== null) {
-    await handleInteractiveOhMyOpencode(rl);
-    return;
-  }
-
-  if (disableAutoCompact) {
-    disableAutoCompactHook();
-  } else {
-    console.log(
-      "Skipped. Use --disable-context-recovery to disable the hook in non-interactive mode.",
-    );
-  }
-}
-
 interface InstallOptions {
   readonly tui: boolean;
-  readonly disableAutoCompact: boolean;
   readonly apiKey: string | undefined;
 }
 
-function stepConfigureApiKey(options: InstallOptions): Promise<number> {
+function stepConfigureApiKey(apiKey: string | undefined): number {
   console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
   console.log("\n🔑 Final step: Configure API key\n");
 
-  if (options.apiKey !== undefined) {
-    saveCredentials(options.apiKey);
-    console.log(`✓ API key saved to ${getCredentialsDir()}`);
-    console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
-    return Promise.resolve(0);
+  if (apiKey === undefined) {
+    console.error("✗ API key is required.\n");
+    console.error("Usage:");
+    console.error("  npx oc-solomemory@latest install <api-key>");
+    console.error("  npx oc-solomemory@latest install --api-key=<key>\n");
+    console.error("Get your API key at https://solomemory.com");
+    return 1;
   }
 
-  if (options.tui) {
-    return login();
-  }
-
-  console.error("✗ API key is required. Use --api-key=KEY in non-interactive mode.");
-  console.error("\nExample:\n  npx oc-solomemory@latest install --api-key=your-key --no-tui");
-  return Promise.resolve(1);
+  saveCredentials(apiKey);
+  console.log(`✓ API key saved to ${getCredentialsDir()}`);
+  console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
+  return 0;
 }
 
 export async function install(options: InstallOptions): Promise<number> {
@@ -324,11 +205,10 @@ export async function install(options: InstallOptions): Promise<number> {
 
   await stepRegisterPlugin(rl);
   await stepCreateCommands(rl);
-  await stepConfigureOhMyOpencode(rl, options.disableAutoCompact);
 
   if (rl !== null) {
     rl.close();
   }
 
-  return stepConfigureApiKey(options);
+  return stepConfigureApiKey(options.apiKey);
 }
