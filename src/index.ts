@@ -21,18 +21,22 @@ const injectedSessions = new Set<string>();
 
 let subagentNames: Set<string> | undefined;
 
-async function loadSubagentNames(client: PluginInput["client"]): Promise<Set<string>> {
+async function loadSubagentNames(client: PluginInput["client"]): Promise<void> {
+  const TIMEOUT_MS = 5000;
   try {
-    const response = await client.app.agents();
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("timeout"));
+      }, TIMEOUT_MS);
+    });
+    const response = await Promise.race([client.app.agents(), timeout]);
     const agents: Agent[] = response.data ?? [];
-    const names = new Set(agents.filter((a) => a.mode === "subagent").map((a) => a.name));
-    log("loaded subagent names", { names: [...names] });
-    return names;
+    subagentNames = new Set(agents.filter((a) => a.mode === "subagent").map((a) => a.name));
+    log("loaded subagent names", { names: [...subagentNames] });
   } catch (error) {
-    log("failed to load subagent names, using empty set", {
+    log("failed to load subagent names", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return new Set<string>();
   }
 }
 
@@ -211,9 +215,7 @@ function initPlugin(ctx: PluginInput): InitResult {
   void ctx.client.tui.showToast({
     body: { message: `oc-solomemory v${version}`, variant: "info" },
   });
-  void loadSubagentNames(ctx.client).then((names) => {
-    subagentNames = names;
-  });
+  void loadSubagentNames(ctx.client);
 
   if (!isConfigured()) {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");
