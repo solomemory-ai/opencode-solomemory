@@ -15,8 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dev:
+  check:
     if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    outputs:
+      is-release: ${{ steps.check-tag.outputs.is-release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if commit is tagged (release)
+        id: check-tag
+        run: |
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "is-release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  dev:
+    needs: check
+    if: needs.check.outputs.is-release == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
