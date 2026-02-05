@@ -25,6 +25,7 @@ import {
 import { log } from "./logger.js";
 
 const TIMEOUT_MS = 30_000;
+const DEFAULT_PAGE_SIZE = 20;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -134,7 +135,7 @@ export class SolomemoryClient {
     }
   }
 
-  async listUserMemories(limit = 20): Promise<ListMemoriesResult> {
+  async listUserMemories(limit = DEFAULT_PAGE_SIZE): Promise<ListMemoriesResult> {
     log("listUserMemories: start", { limit });
     try {
       const result = await post("/memories/user", { limit, order: "desc", sort: "createdAt" });
@@ -179,7 +180,7 @@ export class SolomemoryClient {
     }
   }
 
-  async listMemories(containerTag: string, limit = 20): Promise<ListMemoriesResult> {
+  async listMemories(containerTag: string, limit = DEFAULT_PAGE_SIZE): Promise<ListMemoriesResult> {
     log("listMemories: start", { containerTag, limit });
     try {
       const body = { containerTags: [containerTag], limit, order: "desc", sort: "createdAt" };

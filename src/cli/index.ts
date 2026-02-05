@@ -19,40 +19,52 @@ Examples:
 `);
 }
 
-export async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const command = args[0];
+function shouldShowHelp(command: string | undefined): boolean {
+  return command === undefined || command === "help" || command === "--help" || command === "-h";
+}
 
-  if (command === undefined || command === "help" || command === "--help" || command === "-h") {
-    printHelp();
-    process.exit(0);
-  }
+async function handleInstallCommand(args: string[]): Promise<number> {
+  const noTui = args.includes("--no-tui");
+  const disableAutoCompact = args.includes("--disable-context-recovery");
+  return install({ tui: !noTui, disableAutoCompact });
+}
 
+async function handleCommand(command: string, args: string[]): Promise<number> {
   switch (command) {
     case "install":
     case "setup": {
       if (command === "setup") {
         console.log("Note: 'setup' is deprecated. Use 'install' instead.\n");
       }
-      const noTui = args.includes("--no-tui");
-      const disableAutoCompact = args.includes("--disable-context-recovery");
-      const code = await install({ tui: !noTui, disableAutoCompact });
-      process.exit(code);
-      break;
+      return handleInstallCommand(args);
     }
     case "login": {
-      const code = await login();
-      process.exit(code);
-      break;
+      return login();
     }
     case "logout": {
-      process.exit(logout());
-      break;
+      return logout();
     }
     default: {
       console.error(`Unknown command: ${command}`);
       printHelp();
-      process.exit(1);
+      return 1;
     }
   }
+}
+
+export async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (shouldShowHelp(command)) {
+    printHelp();
+    process.exit(0);
+  }
+
+  if (command === undefined) {
+    process.exit(1);
+  }
+
+  const exitCode = await handleCommand(command, args);
+  process.exit(exitCode);
 }

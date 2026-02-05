@@ -42,6 +42,8 @@ export default tseslint.config(
       "max-lines-per-function": ["error", { max: 50, skipBlankLines: true, skipComments: true }],
       "max-params": ["error", 3],
       "max-nested-callbacks": ["error", 3],
+      "max-statements": ["error", 15],
+      "no-else-return": ["error", { allowElseIf: false }],
 
       // ── SonarJS ─────────────────────────────────────────────────
       "sonarjs/cognitive-complexity": ["error", 10],
@@ -52,6 +54,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/explicit-function-return-type": [
+        "error",
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowConciseArrowFunctionExpressionsStartingWithVoid: true,
+        },
+      ],
       "@typescript-eslint/strict-boolean-expressions": [
         "error",
         {
@@ -66,6 +77,31 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
       "@typescript-eslint/no-confusing-void-expression": "error",
       "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreEnums: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "variable", format: ["camelCase", "UPPER_CASE"], leadingUnderscore: "allow" },
+        {
+          selector: "variable",
+          modifiers: ["const", "exported"],
+          format: ["camelCase", "UPPER_CASE", "PascalCase"],
+        },
+        { selector: "function", format: ["camelCase"] },
+        { selector: "parameter", format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "typeLike", format: ["PascalCase"] },
+        { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
+        { selector: "property", format: null },
+        { selector: "import", format: null },
+      ],
 
       // ── Import organization ─────────────────────────────────────
       "simple-import-sort/imports": "error",

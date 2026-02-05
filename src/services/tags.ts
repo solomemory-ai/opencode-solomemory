@@ -6,8 +6,11 @@ import path from "node:path";
 
 import { CONFIG } from "../config.js";
 
+const HASH_TRUNCATE_LENGTH = 16;
+const REPO_PARTS_OFFSET = -2;
+
 function sha256(input: string): string {
-  return createHash("sha256").update(input).digest("hex").slice(0, 16);
+  return createHash("sha256").update(input).digest("hex").slice(0, HASH_TRUNCATE_LENGTH);
 }
 
 /**
@@ -84,7 +87,7 @@ export function parseRepoOwnerAndName(gitRemoteOrigin: string | null): {
   const parts = gitRemoteOrigin.split("/");
   if (parts.length >= 2) {
     return {
-      owner: parts.at(-2) ?? null,
+      owner: parts.at(REPO_PARTS_OFFSET) ?? null,
       name: parts.at(-1) ?? null,
     };
   }

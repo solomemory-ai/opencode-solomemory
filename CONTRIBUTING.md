@@ -96,8 +96,12 @@ bun run format:check  # Check formatting without writing
 
 - **TypeScript strict** — no `any`, no unsafe assignments/calls/returns, no floating promises, no type assertions (`as X` is banned — use type guards instead)
 - **Strict boolean expressions** — no truthy checks on non-booleans; use explicit comparisons (`!== undefined`, `.length > 0`)
-- **Complexity limits** — cyclomatic complexity ≤10, cognitive complexity ≤10, max nesting depth ≤3, max function params ≤3
+- **Explicit return types** — all named functions must have explicit return type annotations
+- **Naming conventions** — `camelCase` for variables/functions, `PascalCase` for types/classes, `UPPER_CASE` for constants
+- **Complexity limits** — cyclomatic complexity ≤10, cognitive complexity ≤10, max nesting depth ≤3, max params ≤3, max statements ≤15
 - **Size limits** — max 300 lines per file, max 50 lines per function (blank lines and comments excluded)
+- **No magic numbers** — use named constants (only -1, 0, 1, 2 are allowed inline)
+- **No `else` after `return`** — use early returns instead of `else` blocks
 - **Import organization** — imports are auto-sorted; run `bun run lint:fix` to reorder
 - **Modern JS** — nullish coalescing (`??`) over logical OR (`||`), `for...of` over `.forEach()`, `Number.isNaN()` over `isNaN()`
 - **No duplicates** — no identical functions, no repeated string literals

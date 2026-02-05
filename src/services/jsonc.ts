@@ -77,28 +77,44 @@ function handleCommentStart(
   return false;
 }
 
-function processCharacter(content: string, state: ProcessState): void {
-  const char = content[state.i];
-  const nextChar = content[state.i + 1];
-
+function handleStringState(content: string, state: ProcessState, char: string): boolean {
   if (!state.inSingleLineComment && !state.inMultiLineComment && char === '"') {
     processStringChar(content, state);
-    return;
+    return true;
   }
 
   if (state.inString) {
-    state.result += char ?? "";
+    state.result += char;
     state.i++;
-    return;
+    return true;
   }
 
+  return false;
+}
+
+function handleCommentState(content: string, state: ProcessState): boolean {
   if (state.inSingleLineComment) {
     processSingleLineComment(content, state);
-    return;
+    return true;
   }
 
   if (state.inMultiLineComment) {
     processMultiLineComment(content, state);
+    return true;
+  }
+
+  return false;
+}
+
+function processCharacter(content: string, state: ProcessState): void {
+  const char = content[state.i];
+  const nextChar = content[state.i + 1];
+
+  if (handleStringState(content, state, char ?? "")) {
+    return;
+  }
+
+  if (handleCommentState(content, state)) {
     return;
   }
 
@@ -106,7 +122,9 @@ function processCharacter(content: string, state: ProcessState): void {
     return;
   }
 
-  state.result += char ?? "";
+  if (char !== undefined) {
+    state.result += char;
+  }
   state.i++;
 }
 

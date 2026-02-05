@@ -12,6 +12,8 @@ import { handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
 import type { Memory } from "./types/index.js";
 
+const CONTEXT_PREVIEW_LENGTH = 100;
+
 const injectedSessions = new Set<string>();
 
 function extractUserMessage(parts: Part[]): string | null {
@@ -25,7 +27,17 @@ function extractUserMessage(parts: Part[]): string | null {
   return message.trim().length > 0 ? message : null;
 }
 
-function mapMemoriesToSearchFormat(memories: Memory[]) {
+function mapMemoriesToSearchFormat(memories: Memory[]): {
+  results: {
+    id: string;
+    memory: string;
+    similarity: number;
+    title?: string;
+    metadata?: Record<string, unknown>;
+  }[];
+  total: number;
+  timing: number;
+} {
   return {
     results: memories.map((m) => ({
       id: m.id,
@@ -90,7 +102,7 @@ async function handleChatMessage(
   if (userMessage === null) return;
 
   log("chat.message: processing", {
-    messagePreview: userMessage.slice(0, 100),
+    messagePreview: userMessage.slice(0, CONTEXT_PREVIEW_LENGTH),
     partsCount: output.parts.length,
   });
 
@@ -150,6 +162,7 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
   }
 
   return Promise.resolve({
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     "chat.message": async (input, output) => {
       if (!isConfigured()) return;
 

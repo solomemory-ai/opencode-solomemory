@@ -12,6 +12,8 @@ const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
 const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
 const OH_MY_OPENCODE_CONFIG = path.join(OPENCODE_CONFIG_DIR, "oh-my-opencode.json");
 const PLUGIN_NAME = "opencode-solomemory@latest";
+const JSON_INDENT_SPACES = 2;
+const SEPARATOR_WIDTH = 50;
 
 interface OpencodeConfig {
   plugin?: string[];
@@ -53,7 +55,7 @@ function insertPluginIntoExistingArray(content: string): string {
   const fullMatch = match[0];
   const start = match[1] ?? "";
   const middle = match[2] ?? "";
-  const end = match[3] ?? "";
+  const end = match[JSON_INDENT_SPACES + 1] ?? "";
 
   const trimmed = middle.trim();
   const replacement =
@@ -73,6 +75,19 @@ function writePluginToJsonc(configPath: string, content: string): void {
   }
 }
 
+function updateConfigWithPlugin(configPath: string, content: string): void {
+  if (configPath.endsWith(".jsonc")) {
+    writePluginToJsonc(configPath, content);
+  } else {
+    const config = parseOpencodeConfig(content);
+    if (config === null) return;
+    const plugins = config.plugin ?? [];
+    plugins.push(PLUGIN_NAME);
+    config.plugin = plugins;
+    writeFileSync(configPath, JSON.stringify(config, null, JSON_INDENT_SPACES));
+  }
+}
+
 function addPluginToConfig(configPath: string): boolean {
   try {
     const content = readFileSync(configPath, "utf8");
@@ -85,16 +100,7 @@ function addPluginToConfig(configPath: string): boolean {
     const config = parseOpencodeConfig(content);
     if (config === null) return false;
 
-    const plugins = config.plugin ?? [];
-    plugins.push(PLUGIN_NAME);
-    config.plugin = plugins;
-
-    if (configPath.endsWith(".jsonc")) {
-      writePluginToJsonc(configPath, content);
-    } else {
-      writeFileSync(configPath, JSON.stringify(config, null, 2));
-    }
-
+    updateConfigWithPlugin(configPath, content);
     console.log(`✓ Added plugin to ${configPath}`);
     return true;
   } catch (error: unknown) {
@@ -174,25 +180,29 @@ function isAutoCompactAlreadyDisabled(): boolean {
   }
 }
 
+function loadOhMyOpencodeConfig(): OhMyOpencodeConfig {
+  if (!existsSync(OH_MY_OPENCODE_CONFIG)) {
+    return {};
+  }
+
+  const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
+  const parsed: unknown = JSON.parse(content);
+  return isOhMyOpencodeConfig(parsed) ? parsed : {};
+}
+
+function addDisabledHook(config: OhMyOpencodeConfig): void {
+  const disabledHooks = config.disabled_hooks ?? [];
+  if (!disabledHooks.includes("anthropic-context-window-limit-recovery")) {
+    disabledHooks.push("anthropic-context-window-limit-recovery");
+  }
+  config.disabled_hooks = disabledHooks;
+}
+
 function disableAutoCompactHook(): boolean {
   try {
-    let config: OhMyOpencodeConfig = {};
-
-    if (existsSync(OH_MY_OPENCODE_CONFIG)) {
-      const content = readFileSync(OH_MY_OPENCODE_CONFIG, "utf8");
-      const parsed: unknown = JSON.parse(content);
-      if (isOhMyOpencodeConfig(parsed)) {
-        config = parsed;
-      }
-    }
-
-    const disabledHooks = config.disabled_hooks ?? [];
-    if (!disabledHooks.includes("anthropic-context-window-limit-recovery")) {
-      disabledHooks.push("anthropic-context-window-limit-recovery");
-    }
-    config.disabled_hooks = disabledHooks;
-
-    writeFileSync(OH_MY_OPENCODE_CONFIG, JSON.stringify(config, null, 2));
+    const config = loadOhMyOpencodeConfig();
+    addDisabledHook(config);
+    writeFileSync(OH_MY_OPENCODE_CONFIG, JSON.stringify(config, null, JSON_INDENT_SPACES));
     console.log(`✓ Disabled anthropic-context-window-limit-recovery hook in oh-my-opencode.json`);
     return true;
   } catch (error: unknown) {
@@ -233,17 +243,33 @@ async function stepCreateCommands(rl: ReadlineInterface | null): Promise<void> {
   }
 }
 
+function printOhMyOpencodeInfo(): void {
+  console.log("\nStep 3: Configure Oh My OpenCode");
+  console.log("Detected Oh My OpenCode plugin.");
+  console.log(
+    "Solo Memory handles context compaction, so the built-in context-window-limit-recovery hook should be disabled.",
+  );
+}
+
+async function handleInteractiveOhMyOpencode(rl: ReadlineInterface): Promise<void> {
+  const shouldDisable = await confirm(
+    rl,
+    "Disable anthropic-context-window-limit-recovery hook to let Solo Memory handle context?",
+  );
+  if (shouldDisable) {
+    disableAutoCompactHook();
+  } else {
+    console.log("Skipped.");
+  }
+}
+
 async function stepConfigureOhMyOpencode(
   rl: ReadlineInterface | null,
   disableAutoCompact: boolean,
 ): Promise<void> {
   if (!isOhMyOpencodeInstalled()) return;
 
-  console.log("\nStep 3: Configure Oh My OpenCode");
-  console.log("Detected Oh My OpenCode plugin.");
-  console.log(
-    "Solo Memory handles context compaction, so the built-in context-window-limit-recovery hook should be disabled.",
-  );
+  printOhMyOpencodeInfo();
 
   if (isAutoCompactAlreadyDisabled()) {
     console.log("✓ anthropic-context-window-limit-recovery hook already disabled");
@@ -251,15 +277,7 @@ async function stepConfigureOhMyOpencode(
   }
 
   if (rl !== null) {
-    const shouldDisable = await confirm(
-      rl,
-      "Disable anthropic-context-window-limit-recovery hook to let Solo Memory handle context?",
-    );
-    if (shouldDisable) {
-      disableAutoCompactHook();
-    } else {
-      console.log("Skipped.");
-    }
+    await handleInteractiveOhMyOpencode(rl);
     return;
   }
 
@@ -277,7 +295,7 @@ function printApiKeyInstructions(): void {
   console.log('  export SOLOMEMORY_API_KEY="your-api-key"');
   console.log("\nOr run:");
   console.log("  bunx opencode-solomemory@latest login");
-  console.log("\n" + "─".repeat(50));
+  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
   console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
 }
 
@@ -299,7 +317,7 @@ export async function install(options: InstallOptions): Promise<number> {
     rl.close();
   }
 
-  console.log("\n" + "─".repeat(50));
+  console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
   console.log("\n🔑 Final step: Configure API key\n");
 
   if (options.tui) {

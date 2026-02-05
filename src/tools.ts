@@ -2,6 +2,10 @@ import { isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import type { MemoryScope } from "./types/index.js";
 
+const PERCENT_MULTIPLIER = 100;
+const DEFAULT_LIST_LIMIT = 20;
+const DEFAULT_SEARCH_LIMIT = 10;
+
 export interface ToolArgs {
   mode?: string;
   query?: string;
@@ -36,7 +40,7 @@ function formatSearchResults(input: FormatSearchInput): string {
     results: input.results.slice(0, input.limit).map((r) => ({
       id: r.id,
       content: r.memory ?? r.chunk,
-      similarity: Math.round(r.similarity * 100),
+      similarity: Math.round(r.similarity * PERCENT_MULTIPLIER),
     })),
   });
 }
@@ -87,7 +91,7 @@ async function handleProfile(query: string | undefined): Promise<string> {
 
 async function handleList(args: ToolArgs, projectScopeTag: string): Promise<string> {
   const scope = args.scope ?? "project";
-  const limit = args.limit ?? 20;
+  const limit = args.limit ?? DEFAULT_LIST_LIMIT;
 
   const result = await (scope === "user"
     ? solomemoryClient.listUserMemories(limit)
@@ -151,7 +155,7 @@ async function searchBothScopes(query: string, tag: string, limit: number): Prom
     results: combined.slice(0, limit).map((r) => ({
       id: r.id,
       content: r.memory ?? r.chunk,
-      similarity: Math.round(r.similarity * 100),
+      similarity: Math.round(r.similarity * PERCENT_MULTIPLIER),
       scope: r.scope,
     })),
   });
@@ -162,7 +166,7 @@ async function handleSearch(args: ToolArgs, projectScopeTag: string): Promise<st
     return errorResponse("query parameter is required for search mode");
   }
 
-  const limit = args.limit ?? 10;
+  const limit = args.limit ?? DEFAULT_SEARCH_LIMIT;
 
   if (args.scope === "user") {
     return searchUserScope(args.query, limit);

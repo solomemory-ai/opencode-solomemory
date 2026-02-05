@@ -125,29 +125,36 @@ export interface SessionIdleInput {
   tags: Tags;
 }
 
-export async function handleSessionIdle(input: SessionIdleInput): Promise<void> {
-  const { sessionID, ctx, directory, tags } = input;
-
+async function fetchSessionMessages(
+  ctx: PluginInput,
+  sessionID: string,
+): Promise<{ allMessages: unknown[]; syncState: ConversationSyncState }> {
   const messagesResponse = await ctx.client.session.messages({ path: { id: sessionID } });
   const allMessages: unknown[] = messagesResponse.data ?? [];
-
   const syncState = sessionSyncState.get(sessionID) ?? initSyncState(sessionID, allMessages);
+  return { allMessages, syncState };
+}
 
-  const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
+function handleNoMessages(
+  sessionID: string,
+  syncState: ConversationSyncState,
+  allMessages: unknown[],
+): void {
+  log("event: no valid messages to sync", { sessionID });
+  syncState.lastSyncedMessageIndex = allMessages.length - 1;
+}
 
-  if (rawMessages.length === 0) {
-    log("event: no valid messages to sync", { sessionID });
-    syncState.lastSyncedMessageIndex = allMessages.length - 1;
-    return;
-  }
+interface IngestParams {
+  syncState: ConversationSyncState;
+  rawMessages: ConversationMessage[];
+  conversationTags: ReturnType<typeof getConversationTags>;
+  metadata: Record<string, string | number | boolean>;
+  sessionID: string;
+  allMessages: unknown[];
+}
 
-  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
-  const conversationTags = getConversationTags(tags, sessionID, directory);
-  const metadata = buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length);
-
-  if (sessionInfo.data?.title) {
-    metadata.title = sessionInfo.data.title;
-  }
+async function ingestAndLogResult(params: IngestParams): Promise<void> {
+  const { syncState, rawMessages, conversationTags, metadata, sessionID, allMessages } = params;
 
   const result = await solomemoryClient.ingestConversation({
     conversationId: syncState.conversationId,
@@ -169,4 +176,33 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
       error: result.error,
     });
   }
+}
+
+export async function handleSessionIdle(input: SessionIdleInput): Promise<void> {
+  const { sessionID, ctx, directory, tags } = input;
+
+  const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
+  const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
+
+  if (rawMessages.length === 0) {
+    handleNoMessages(sessionID, syncState, allMessages);
+    return;
+  }
+
+  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
+  const conversationTags = getConversationTags(tags, sessionID, directory);
+  const metadata = buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length);
+
+  if (sessionInfo.data?.title) {
+    metadata.title = sessionInfo.data.title;
+  }
+
+  await ingestAndLogResult({
+    syncState,
+    rawMessages,
+    conversationTags,
+    metadata,
+    sessionID,
+    allMessages,
+  });
 }
