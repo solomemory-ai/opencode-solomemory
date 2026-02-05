@@ -6,7 +6,8 @@
 
 # oc-solomemory
 
-[![npm version](https://img.shields.io/npm/v/oc-solomemory?color=blue)](https://www.npmjs.com/package/oc-solomemory)
+[![npm version](https://img.shields.io/npm/v/oc-solomemory?color=blue&label=stable)](https://www.npmjs.com/package/oc-solomemory)
+[![npm dev](https://img.shields.io/npm/v/oc-solomemory/dev?color=orange&label=dev)](https://www.npmjs.com/package/oc-solomemory?activeTab=versions)
 [![npm downloads](https://img.shields.io/npm/dm/oc-solomemory)](https://www.npmjs.com/package/oc-solomemory)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
