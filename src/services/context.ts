@@ -139,7 +139,7 @@ export function formatContextForPrompt(
   }
 
   parts.push(
-    "\n[To find more context: use solomemory tool with {mode: 'search', query: '<your question>'}]",
+    "\n[IMPORTANT: When the conversation topic changes or the user asks about something not covered above, you MUST proactively call the solomemory tool with {mode: 'search', query: '<relevant query>'} to retrieve additional context. Do not wait for the user to ask — search automatically whenever you lack context.]",
   );
 
   return parts.join("\n");
