@@ -1,6 +1,7 @@
 import { isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import type { ListMemoriesResult, ProjectInfo } from "./services/client-types.js";
+import { reportError } from "./services/error-reporter.js";
 import { getProjectTag, getRepositoryTag } from "./services/tags.js";
 import type { MemoryScope } from "./types/index.js";
 
@@ -266,6 +267,7 @@ export async function executeTool(args: ToolArgs, projectScopeTag: string): Prom
       }
     }
   } catch (error) {
+    reportError(error, { context: "executeTool", mode });
     return errorResponse(error instanceof Error ? error.message : String(error));
   }
 }

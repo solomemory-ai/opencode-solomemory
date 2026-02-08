@@ -2,6 +2,7 @@ import type { PluginInput } from "@opencode-ai/plugin";
 
 import { CONFIG } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
+import { reportError } from "./services/error-reporter.js";
 import { log } from "./services/logger.js";
 import { extractTextFromParts, type SessionMessage } from "./services/messages.js";
 import type { Tags } from "./services/tags.js";
@@ -180,6 +181,7 @@ async function ingestAndLogResult(params: IngestParams): Promise<void> {
       sessionID,
       error: result.error,
     });
+    reportError(result.error, { context: "ingestAndLogResult", sessionID });
   }
 }
 

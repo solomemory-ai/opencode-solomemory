@@ -5,6 +5,7 @@ import type { Agent, Event, Part } from "@opencode-ai/sdk";
 import { CONFIG, isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import { formatContextForPrompt } from "./services/context.js";
+import { reportError } from "./services/error-reporter.js";
 import { log } from "./services/logger.js";
 import type { Tags } from "./services/tags.js";
 import { getTags } from "./services/tags.js";
@@ -37,6 +38,7 @@ async function loadSubagentNames(client: PluginInput["client"]): Promise<void> {
     log("failed to load subagent names", {
       error: error instanceof Error ? error.message : String(error),
     });
+    reportError(error, { context: "loadSubagentNames" });
   }
 }
 
@@ -166,26 +168,26 @@ interface PluginContext {
   readonly tags: Tags;
 }
 
-async function handleEvent(event: Event, context: PluginContext): Promise<void> {
-  if (event.type === "session.deleted") {
-    const sessionId = event.properties.info.id;
-    injectedSessions.delete(sessionId);
-    subagentSessions.delete(sessionId);
-    sessionSyncState.delete(sessionId);
-    log("event: cleaned up session state", { sessionID: sessionId });
+function cleanupDeletedSession(sessionId: string): void {
+  injectedSessions.delete(sessionId);
+  subagentSessions.delete(sessionId);
+  sessionSyncState.delete(sessionId);
+  log("event: cleaned up session state", { sessionID: sessionId });
+}
+
+async function handleCompactedEvent(ctx: PluginInput, sessionID: string): Promise<void> {
+  try {
+    await handleSessionCompacted(ctx, sessionID);
+  } catch (error) {
+    log("event: session compacted error", {
+      sessionID,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    reportError(error, { context: "handleEvent:session.compacted", sessionID });
   }
+}
 
-  if (event.type === "session.compacted") {
-    await handleSessionCompacted(context.ctx, event.properties.sessionID);
-    return;
-  }
-
-  if (event.type !== "session.idle" || !isConfigured() || !CONFIG.autoSyncConversations) {
-    return;
-  }
-
-  const { sessionID } = event.properties;
-
+async function handleIdleEvent(context: PluginContext, sessionID: string): Promise<void> {
   try {
     await handleSessionIdle({
       sessionID,
@@ -198,7 +200,25 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
       sessionID,
       error: error instanceof Error ? error.message : String(error),
     });
+    reportError(error, { context: "handleEvent:session.idle", sessionID });
   }
+}
+
+async function handleEvent(event: Event, context: PluginContext): Promise<void> {
+  if (event.type === "session.deleted") {
+    cleanupDeletedSession(event.properties.info.id);
+  }
+
+  if (event.type === "session.compacted") {
+    await handleCompactedEvent(context.ctx, event.properties.sessionID);
+    return;
+  }
+
+  if (event.type !== "session.idle" || !isConfigured() || !CONFIG.autoSyncConversations) {
+    return;
+  }
+
+  await handleIdleEvent(context, event.properties.sessionID);
 }
 
 interface InitResult {
@@ -245,6 +265,7 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
         );
       } catch (error) {
         log("chat.message: ERROR", { error: String(error) });
+        reportError(error, { context: "chat.message", sessionID: input.sessionID });
       }
     },
 

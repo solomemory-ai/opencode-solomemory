@@ -24,6 +24,7 @@ import {
   searchFailure,
   toErrorMessage,
 } from "./client-types.js";
+import { reportError } from "./error-reporter.js";
 import { log } from "./logger.js";
 
 const TIMEOUT_MS = 30_000;
@@ -94,6 +95,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("searchMemories: error", { error: msg });
+      reportError(error, { context: "client:searchMemories", containerTag });
       return searchFailure(msg);
     }
   }
@@ -112,6 +114,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("getProfile: error", { error: msg });
+      reportError(error, { context: "client:getProfile" });
       return { success: false as const, error: msg, profile: null };
     }
   }
@@ -133,6 +136,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("searchUserMemories: error", { error: msg });
+      reportError(error, { context: "client:searchUserMemories" });
       return searchFailure(msg);
     }
   }
@@ -147,6 +151,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("listUserMemories: error", { error: msg });
+      reportError(error, { context: "client:listUserMemories" });
       return listFailure(msg);
     }
   }
@@ -165,6 +170,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("addMemory: error", { error: msg });
+      reportError(error, { context: "client:addMemory", containerTag });
       return { success: false as const, error: msg };
     }
   }
@@ -178,6 +184,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("deleteMemory: error", { memoryId, error: msg });
+      reportError(error, { context: "client:deleteMemory", memoryId });
       return { success: false, error: msg };
     }
   }
@@ -194,6 +201,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("listMemories: error", { error: msg });
+      reportError(error, { context: "client:listMemories", containerTag });
       return listFailure(msg);
     }
   }
@@ -216,6 +224,10 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("ingestConversation: error", { error: msg });
+      reportError(error, {
+        context: "client:ingestConversation",
+        conversationId: payload.conversationId,
+      });
       return { success: false as const, error: msg };
     }
   }
@@ -226,6 +238,7 @@ export class SolomemoryClient {
       if (!isJobStatusResponse(result)) throw new Error("Invalid job status response format");
       return { success: true as const, job: result };
     } catch (error) {
+      reportError(error, { context: "client:getJobStatus", jobId });
       return { success: false as const, error: toErrorMessage(error) };
     }
   }
@@ -245,6 +258,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("searchByMetadata: error", { error: msg });
+      reportError(error, { context: "client:searchByMetadata" });
       return searchFailure(msg);
     }
   }
@@ -260,6 +274,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("listGlobalMemories: error", { error: msg });
+      reportError(error, { context: "client:listGlobalMemories" });
       return listFailure(msg);
     }
   }
@@ -274,6 +289,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("listProjects: error", { error: msg });
+      reportError(error, { context: "client:listProjects" });
       return { success: false as const, error: msg, projects: [] };
     }
   }
@@ -292,6 +308,7 @@ export class SolomemoryClient {
     } catch (error) {
       const msg = toErrorMessage(error);
       log("searchGlobal: error", { error: msg });
+      reportError(error, { context: "client:searchGlobal" });
       return searchFailure(msg);
     }
   }

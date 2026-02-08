@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
-import eslintConfigPrettier from "eslint-config-prettier";
+import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 
 export default tseslint.config(
   // Base
@@ -15,8 +15,8 @@ export default tseslint.config(
   sonarjs.configs.recommended,
   unicorn.configs["flat/recommended"],
 
-  // Prettier (must be last preset — disables conflicting format rules)
-  eslintConfigPrettier,
+  // Prettier (must be last preset — disables conflicting rules + reports formatting as errors)
+  eslintPluginPrettier,
 
   // Global parser options
   {
