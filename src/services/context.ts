@@ -159,7 +159,7 @@ export function formatContextForPrompt(
   }
 
   parts.push(
-    "\n[Use the solomemory tool with {mode: 'search', query: '<topic>'} to get full details on any topic above. Always search for more context when the conversation relates to a listed topic or when you lack context.]",
+    "\n[IMPORTANT: Before answering, check if the user's question relates to any topic above. If it does, call the solomemory tool with {mode: 'search', query: '<relevant topic>'} to recall full context before responding. Do not guess from topic titles alone — always retrieve details if they are related.]",
   );
 
   return parts.join("\n");
