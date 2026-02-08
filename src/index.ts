@@ -12,7 +12,6 @@ import { getTags } from "./services/tags.js";
 import { subagentSessions } from "./state.js";
 import { handleSessionCompacted, handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
-import type { Memory } from "./types/index.js";
 
 declare const PKG_VERSION: string;
 
@@ -58,30 +57,6 @@ function extractUserMessage(parts: Part[]): string | null {
   return message.trim().length > 0 ? message : null;
 }
 
-function mapMemoriesToSearchFormat(memories: Memory[]): {
-  results: {
-    id: string;
-    memory: string;
-    similarity: number;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  }[];
-  total: number;
-  timing: number;
-} {
-  return {
-    results: memories.map((m) => ({
-      id: m.id,
-      memory: m.summary,
-      similarity: 1,
-      title: m.title,
-      metadata: m.metadata,
-    })),
-    total: memories.length,
-    timing: 0,
-  };
-}
-
 interface ContextInjectionInput {
   sessionID: string;
   messageID: string;
@@ -92,20 +67,17 @@ interface ContextInjectionInput {
 async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]): Promise<void> {
   const start = Date.now();
 
-  const [profileResult, userMemoriesResult, projectMemoriesListResult] = await Promise.all([
+  const [profileResult, userMemoriesResult, topicsResult] = await Promise.all([
     solomemoryClient.getProfile(),
     solomemoryClient.searchUserMemories(input.userMessage),
-    solomemoryClient.listMemories(input.projectScopeTag, CONFIG.maxProjectMemories),
+    solomemoryClient.getTopics(input.projectScopeTag, CONFIG.maxProjectMemories),
   ]);
 
   const profile = profileResult.success ? profileResult : null;
   const userMemories = userMemoriesResult.success ? userMemoriesResult : { results: [] };
-  const projectMemoriesList = projectMemoriesListResult.success
-    ? projectMemoriesListResult
-    : { memories: [] };
+  const topicsList = topicsResult.success ? topicsResult.topics : [];
 
-  const projectMemories = mapMemoriesToSearchFormat(projectMemoriesList.memories);
-  const memoryContext = formatContextForPrompt(profile, userMemories, projectMemories);
+  const memoryContext = formatContextForPrompt(profile, userMemories, topicsList);
 
   if (!memoryContext) return;
 

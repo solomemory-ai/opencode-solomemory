@@ -34,6 +34,12 @@ interface MemoriesResponseMinimal {
   results?: MemoryResultMinimal[];
 }
 
+interface TopicItem {
+  topic: string;
+  keywords?: string[];
+  createdAt?: string;
+}
+
 interface TimeDifferences {
   year: number;
   month: number;
@@ -112,10 +118,25 @@ function formatMemorySection(memories: MemoryResultMinimal[], title: string): st
   return lines;
 }
 
+function formatTopicSection(topics: TopicItem[]): string[] {
+  const lines: string[] = [];
+  if (topics.length > 0) {
+    lines.push("\nProject Knowledge (topics):");
+    for (const t of topics) {
+      const timeAgo = formatTimeAgo(t.createdAt);
+      const timeStr = timeAgo ? ` (${timeAgo})` : "";
+      const kw =
+        t.keywords !== undefined && t.keywords.length > 0 ? ` [${t.keywords.join(", ")}]` : "";
+      lines.push(`-${timeStr} ${t.topic}${kw}`);
+    }
+  }
+  return lines;
+}
+
 export function formatContextForPrompt(
   profile: ProfileResponse | null,
   userMemories: MemoriesResponseMinimal,
-  projectMemories: MemoriesResponseMinimal,
+  projectTopics: TopicItem[],
 ): string {
   const parts: string[] = ["[SOLOMEMORY - Retrieved memories about user/project]"];
 
@@ -128,8 +149,7 @@ export function formatContextForPrompt(
     parts.push(...profileLines);
   }
 
-  const projectResults = projectMemories.results ?? [];
-  parts.push(...formatMemorySection(projectResults, "Project Knowledge"));
+  parts.push(...formatTopicSection(projectTopics));
 
   const userResults = userMemories.results ?? [];
   parts.push(...formatMemorySection(userResults, "Relevant Memories"));
@@ -139,7 +159,7 @@ export function formatContextForPrompt(
   }
 
   parts.push(
-    "\n[IMPORTANT: When the conversation topic changes or the user asks about something not covered above, you MUST proactively call the solomemory tool with {mode: 'search', query: '<relevant query>'} to retrieve additional context. Do not wait for the user to ask — search automatically whenever you lack context.]",
+    "\n[Use the solomemory tool with {mode: 'search', query: '<topic>'} to get full details on any topic above. Always search for more context when the conversation relates to a listed topic or when you lack context.]",
   );
 
   return parts.join("\n");

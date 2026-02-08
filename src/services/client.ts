@@ -4,6 +4,7 @@ import type {
   AddMemoryResult,
   DeleteMemoryResult,
   GetJobStatusResult,
+  GetTopicsResult,
   IngestConversationResult,
   IngestPayload,
   ListMemoriesResult,
@@ -20,9 +21,11 @@ import {
   isProfileResponse,
   isProjectsResponse,
   isSearchResponse,
+  isTopicsResponse,
   listFailure,
   searchFailure,
   toErrorMessage,
+  topicsFailure,
 } from "./client-types.js";
 import { reportError } from "./error-reporter.js";
 import { log } from "./logger.js";
@@ -103,13 +106,10 @@ export class SolomemoryClient {
   async getProfile(query?: string): Promise<ProfileResult> {
     log("getProfile: start", { query });
     try {
-      const params = new URLSearchParams();
-      if (query) params.append("q", query);
-      const qs = params.toString();
-      const result = await get(qs ? "/profile?" + qs : "/profile");
+      const endpoint = query ? "/profile?q=" + encodeURIComponent(query) : "/profile";
+      const result = await get(endpoint);
       if (!isProfileResponse(result)) throw new Error("Invalid profile response format");
       log("getProfile: success", { hasProfile: result.profile !== null });
-      log("getProfile: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
@@ -131,7 +131,6 @@ export class SolomemoryClient {
       });
       if (!isSearchResponse(result)) throw new Error("Invalid search response format");
       log("searchUserMemories: success", { count: result.results.length });
-      log("searchUserMemories: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
@@ -196,7 +195,6 @@ export class SolomemoryClient {
       const result = await post("/memories/list", body);
       if (!isListMemoriesResponse(result)) throw new Error("Invalid list response format");
       log("listMemories: success", { count: result.memories.length });
-      log("listMemories: response", result);
       return { success: true as const, ...result };
     } catch (error) {
       const msg = toErrorMessage(error);
@@ -207,27 +205,16 @@ export class SolomemoryClient {
   }
 
   async ingestConversation(payload: IngestPayload): Promise<IngestConversationResult> {
-    log("ingestConversation: start", {
-      conversationId: payload.conversationId,
-      messageCount: payload.messages.length,
-    });
-    log("ingestConversation: payload", payload);
+    log("ingestConversation: start", { id: payload.conversationId, msgs: payload.messages.length });
     try {
       const response = await post("/conversations", payload);
       if (!isIngestResponse(response)) throw new Error("Invalid ingest response format");
-      log("ingestConversation: queued", {
-        conversationId: payload.conversationId,
-        jobId: response.id,
-        status: response.status,
-      });
+      log("ingestConversation: queued", { id: response.id, status: response.status });
       return { success: true as const, ...response };
     } catch (error) {
       const msg = toErrorMessage(error);
       log("ingestConversation: error", { error: msg });
-      reportError(error, {
-        context: "client:ingestConversation",
-        conversationId: payload.conversationId,
-      });
+      reportError(error, { context: "client:ingestConversation" });
       return { success: false as const, error: msg };
     }
   }
@@ -310,6 +297,22 @@ export class SolomemoryClient {
       log("searchGlobal: error", { error: msg });
       reportError(error, { context: "client:searchGlobal" });
       return searchFailure(msg);
+    }
+  }
+
+  async getTopics(containerTag: string, limit = DEFAULT_PAGE_SIZE): Promise<GetTopicsResult> {
+    log("getTopics: start", { containerTag, limit });
+    try {
+      const params = new URLSearchParams({ containerTags: containerTag, limit: String(limit) });
+      const result = await get("/memories/topics?" + params.toString());
+      if (!isTopicsResponse(result)) throw new Error("Invalid topics response format");
+      log("getTopics: success", { count: result.topics.length });
+      return { success: true as const, ...result };
+    } catch (error) {
+      const msg = toErrorMessage(error);
+      log("getTopics: error", { error: msg });
+      reportError(error, { context: "client:getTopics", containerTag });
+      return topicsFailure(msg);
     }
   }
 }

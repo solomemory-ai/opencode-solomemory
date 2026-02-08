@@ -118,6 +118,22 @@ export type ListProjectsResult =
   | { success: true; projects: ProjectInfo[] }
   | { success: false; error: string; projects: [] };
 
+export interface TopicEntry {
+  id: string;
+  topic: string;
+  keywords?: string[];
+  createdAt?: string;
+}
+
+export interface TopicsResponse {
+  topics: TopicEntry[];
+  total: number;
+}
+
+export type GetTopicsResult =
+  | { success: true; topics: TopicEntry[]; total: number }
+  | { success: false; error: string; topics: []; total: 0 };
+
 // ── Type guards ────────────────────────────────────────────
 
 function isObject(data: unknown): data is Record<string, unknown> {
@@ -181,6 +197,10 @@ export function isProjectsResponse(data: unknown): data is ProjectsResponse {
   return "projects" in data && Array.isArray(data.projects) && "count" in data;
 }
 
+export function isTopicsResponse(data: unknown): data is TopicsResponse {
+  return isObject(data) && "topics" in data && Array.isArray(data.topics) && "total" in data;
+}
+
 // ── Utilities ──────────────────────────────────────────────
 
 export function toErrorMessage(error: unknown): string {
@@ -198,4 +218,8 @@ export function listFailure(error: string): ListMemoriesResult {
     memories: [],
     pagination: { currentPage: 1, totalItems: 0, totalPages: 0 },
   };
+}
+
+export function topicsFailure(error: string): GetTopicsResult {
+  return { success: false as const, error, topics: [], total: 0 };
 }
