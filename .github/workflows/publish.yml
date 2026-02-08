@@ -67,6 +67,7 @@ jobs:
         run: npm publish --provenance --access public --tag dev
 
       - name: Publish dev mirror to npm (latest tag)
+        continue-on-error: true
         run: |
           cp package.json package.json.bak
           jq --arg name "oc-solomemory-dev" '.name = $name' package.json > tmp.json && mv tmp.json package.json
