@@ -1,6 +1,6 @@
 # OPENCODE-SOLOMEMORY PLUGIN
 
-**Generated:** 2026-02-05
+**Generated:** 2026-02-08
 
 ## OVERVIEW
 
@@ -11,12 +11,19 @@ OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile 
 ```
 opencode-solomemory/
 ├── src/
-│   ├── index.ts           # Entry: hooks + tool definition (506 LOC)
+│   ├── index.ts           # Entry: hooks registration, context injection, session mgmt
+│   ├── tools.ts           # Tool handler: solomemory tool modes (search, profile, list, help, projects)
+│   ├── sync.ts            # Conversation sync: session.idle/compacted handlers, incremental sync
+│   ├── state.ts           # Shared state: subagentSessions Set
 │   ├── config.ts          # Config resolution via Proxy (env > jsonc > credentials > defaults)
-│   ├── cli.ts             # CLI installer + auth commands (559 LOC, separate build target)
+│   ├── cli.ts             # CLI entry (delegates to cli/)
+│   ├── cli/
+│   │   ├── index.ts       # CLI command router (install, login, logout, status, help)
+│   │   ├── install.ts     # Install command: config patching, slash commands
+│   │   └── templates.ts   # AGENTS.md + config templates for install
 │   ├── types/
 │   │   └── index.ts       # Shared interfaces: Result<T,E>, Memory, ConversationMessage
-│   └── services/          # 8 service modules (~1270 LOC total, see services/AGENTS.md)
+│   └── services/          # 10 service modules (see services/AGENTS.md)
 ├── docs/
 │   ├── CONFIG.md          # Full config reference
 │   └── RELEASE.md         # Release process
@@ -31,34 +38,40 @@ opencode-solomemory/
 | Task                  | Location                               | Notes                                             |
 | --------------------- | -------------------------------------- | ------------------------------------------------- |
 | Add hook              | `src/index.ts`                         | Register in plugin hooks object + opencode config |
-| Add tool mode         | `src/index.ts`                         | Switch case in `solomemory` tool handler          |
-| Add API endpoint      | `src/services/client.ts`               | New method + type guard + response type           |
+| Add tool mode         | `src/tools.ts`                         | Switch case in `executeTool()` handler            |
+| Modify sync behavior  | `src/sync.ts`                          | `handleSessionIdle()`, `handleSessionCompacted()` |
+| Add API endpoint      | `src/services/client.ts`               | New method + type in `client-types.ts`            |
 | Change context format | `src/services/context.ts`              | `formatContextForPrompt()`                        |
 | Add tag type          | `src/services/tags.ts`                 | New getter + add to `getTags()` return            |
 | Change config option  | `src/config.ts` + `src/types/index.ts` | Add to RuntimeConfig, update defaults             |
-| Add CLI command       | `src/cli.ts`                           | New case in main switch                           |
+| Add CLI command       | `src/cli/index.ts`                     | New case in command router                        |
 | Change privacy rules  | `src/services/privacy.ts`              | Regex patterns                                    |
-| Modify sync behavior  | `src/index.ts`                         | `session.idle` event handler                      |
+| Workspace detection   | `src/services/workspace.ts`            | Walk-up directory search for project markers      |
 
 ## CODE MAP
 
 | Symbol                   | Type           | Location                  | Role                                                   |
 | ------------------------ | -------------- | ------------------------- | ------------------------------------------------------ |
 | `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`            | Default export, plugin entry                           |
+| `executeTool`            | fn             | `src/tools.ts`            | Tool mode dispatcher (search, profile, list, help)     |
+| `handleSessionIdle`      | fn             | `src/sync.ts`             | Incremental conversation sync on idle                  |
+| `handleSessionCompacted` | fn             | `src/sync.ts`             | Full re-sync on session compaction                     |
+| `sessionSyncState`       | Map            | `src/sync.ts`             | Incremental sync tracking per session                  |
+| `subagentSessions`       | Set            | `src/state.ts`            | Tracks subagent session IDs (skip sync)                |
 | `solomemoryClient`       | singleton      | `src/services/client.ts`  | All API communication                                  |
 | `CONFIG`                 | Proxy          | `src/config.ts`           | Lazy-init config, accessed everywhere                  |
 | `getTags`                | fn             | `src/services/tags.ts`    | Container tag generation (project, repo, branch, etc.) |
 | `formatContextForPrompt` | fn             | `src/services/context.ts` | Memory → system prompt injection                       |
-| `sessionSyncState`       | Map            | `src/index.ts`            | Incremental sync tracking per session                  |
 | `injectedSessions`       | Set            | `src/index.ts`            | Prevents double-injection per session                  |
 
 ## HOOKS
 
-| Hook                    | Trigger                        | Action                                                                                                           |
-| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `chat.message`          | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                             |
-| `event:session.idle`    | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingestConversation` |
-| `event:session.deleted` | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                            |
+| Hook                      | Trigger                        | Action                                                                                                           |
+| ------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                             |
+| `event:session.idle`      | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingestConversation` |
+| `event:session.compacted` | Session compacted              | Full re-sync: re-extract all messages, ingest with compacted flag                                                |
+| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                            |
 
 ## TOOL
 
@@ -99,6 +112,7 @@ Key defaults: `similarityThreshold=0.6`, `maxMemories=5`, `maxProjectMemories=10
 - **Never send user identity from client** — server derives it from auth token
 - **`isUserOrAssistantMessage` is @deprecated** — use `isNonSyntheticMessage` instead
 - Branch/workspace names are intentionally NOT hashed (readability over privacy)
+- **Never sync subagent sessions** — tracked via `subagentSessions` Set in `state.ts`
 
 ## COMMANDS
 
