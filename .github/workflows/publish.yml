@@ -81,6 +81,14 @@ jobs:
           echo "@solomemory-ai:registry=https://npm.pkg.github.com" >> .npmrc
           npm publish --tag dev
 
+      - name: Publish dev mirror to GitHub Packages
+        continue-on-error: true
+        run: |
+          jq --arg name "@solomemory-ai/oc-solomemory-dev" '.name = $name' package.json > tmp.json && mv tmp.json package.json
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          echo "@solomemory-ai:registry=https://npm.pkg.github.com" >> .npmrc
+          npm publish --tag latest
+
       - name: Create GitHub Pre-release
         uses: softprops/action-gh-release@v2
         with:
