@@ -47,13 +47,24 @@ export function reportError(error: unknown, extra?: Record<string, unknown>): vo
   void sendReport(report);
 }
 
+function extractTags(
+  extra: Record<string, unknown> | undefined,
+): Record<string, string> | undefined {
+  if (extra === undefined) return undefined;
+  const context = extra.context;
+  if (typeof context === "string" && context.length > 0) return { context };
+  return undefined;
+}
+
 function buildReport(error: unknown, extra?: Record<string, unknown>): ErrorReport | null {
+  const tags = extractTags(extra);
   if (error instanceof Error) {
     return {
       message: error.message,
       exceptionType: error.name,
       stack: error.stack,
       level: "error",
+      tags,
       extra,
     };
   }
@@ -62,6 +73,7 @@ function buildReport(error: unknown, extra?: Record<string, unknown>): ErrorRepo
     return {
       message: error,
       level: "error",
+      tags,
       extra,
     };
   }
