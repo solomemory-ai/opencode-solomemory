@@ -34,11 +34,11 @@ export interface ConversationMetadata {
   [key: string]: string | number | boolean | undefined;
 }
 
-export interface ConversationIngestResponse {
-  id: string;
-  conversationId: string;
+export interface IngestResponse {
+  id: number;
+  sourceId: string;
   status: string;
-  message?: string;
+  message: string;
 }
 
 export interface JobStatus {

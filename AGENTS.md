@@ -66,12 +66,12 @@ opencode-solomemory/
 
 ## HOOKS
 
-| Hook                      | Trigger                        | Action                                                                                                           |
-| ------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                             |
-| `event:session.idle`      | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingestConversation` |
-| `event:session.compacted` | Session compacted              | Full re-sync: re-extract all messages, ingest with compacted flag                                                |
-| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                            |
+| Hook                      | Trigger                        | Action                                                                                                                            |
+| ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                                              |
+| `event:session.idle`      | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingest` with sourceType=conversation |
+| `event:session.compacted` | Session compacted              | Full re-sync: re-extract all messages, ingest with compacted flag                                                                 |
+| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                                             |
 
 ## TOOL
 
