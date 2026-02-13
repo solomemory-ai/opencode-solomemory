@@ -24,6 +24,7 @@ import {
   apiRequest,
   DEFAULT_PAGE_SIZE,
   post,
+  postWithRetry,
   TIMEOUT_MS,
   withTimeout,
 } from "./api-transport.http.js";
@@ -54,7 +55,7 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
     sourceType: payload.sourceType ?? "conversation",
   });
   try {
-    const response = await post("/ingest", payload);
+    const response = await postWithRetry("/ingest", payload);
     if (!isIngestResponse(response)) throw new Error("Invalid ingest response format");
     log("ingest: accepted", { id: response.id, status: response.status });
     return {
@@ -66,7 +67,7 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   } catch (error) {
     const msg = toErrorMessage(error);
     log("ingest: error", { error: msg });
-    reportError(error, { context: "client:ingest" });
+    reportError(error, { context: "client:ingest", sourceId: payload.sourceId });
     return { success: false as const, error: msg };
   }
 }

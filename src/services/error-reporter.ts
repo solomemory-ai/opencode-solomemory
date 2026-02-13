@@ -78,7 +78,25 @@ function buildReport(error: unknown, extra?: Record<string, unknown>): ErrorRepo
     };
   }
 
-  return null;
+  const fallback = safeStringify(error);
+  if (fallback.length === 0) return null;
+
+  return {
+    message: fallback,
+    exceptionType: typeof error,
+    level: "error",
+    tags,
+    extra,
+  };
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    if (typeof value === "object" && value !== null) return JSON.stringify(value);
+    return String(value);
+  } catch {
+    return "[unstringifiable error]";
+  }
 }
 
 async function sendReport(report: ErrorReport): Promise<void> {
@@ -119,7 +137,9 @@ async function sendReport(report: ErrorReport): Promise<void> {
     } else {
       log("errorReporter: server rejected", { status: response.status });
     }
-  } catch {
-    // Error reporting should never crash the app
+  } catch (error) {
+    log("errorReporter: send failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

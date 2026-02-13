@@ -3,8 +3,6 @@
  * Entry points for session.idle and session.compacted events.
  */
 
-import type { PluginInput } from "@opencode-ai/plugin";
-
 import { log } from "../services/logger.js";
 import { getConversationTags } from "../services/tags.js";
 import { subagentSessions } from "../state.js";
@@ -17,12 +15,40 @@ import { buildConversationMetadata } from "./conversation-metadata.mapper.js";
 import { extractValidMessages } from "./session-message.validation.js";
 import type { SessionIdleInput } from "./sync.types.js";
 
-export async function handleSessionCompacted(ctx: PluginInput, sessionID: string): Promise<void> {
+export async function handleSessionCompacted(input: SessionIdleInput): Promise<void> {
+  const { sessionID, ctx, directory, tags } = input;
+
   const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
-  syncState.lastSyncedMessageIndex = allMessages.length - 1;
-  log("event: session compacted, sync state reset", {
+  const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
+
+  if (rawMessages.length === 0) {
+    handleNoMessages(sessionID, syncState, allMessages);
+    log("event: session compacted, no unsynced messages", { sessionID });
+    return;
+  }
+
+  const [sessionInfo, conversationTags, metadata] = await Promise.all([
+    ctx.client.session.get({ path: { id: sessionID } }),
+    getConversationTags(tags, sessionID, directory),
+    buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length),
+  ]);
+
+  if (sessionInfo.data?.title) {
+    metadata.title = sessionInfo.data.title;
+  }
+
+  await ingestAndLogResult({
+    syncState,
+    rawMessages,
+    conversationTags,
+    metadata,
     sessionID,
-    totalMessages: allMessages.length,
+    allMessages,
+  });
+
+  log("event: session compacted, unsynced messages ingested", {
+    sessionID,
+    messageCount: rawMessages.length,
   });
 }
 

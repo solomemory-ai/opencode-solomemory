@@ -147,9 +147,14 @@ function cleanupDeletedSession(sessionId: string): void {
   log("event: cleaned up session state", { sessionID: sessionId });
 }
 
-async function handleCompactedEvent(ctx: PluginInput, sessionID: string): Promise<void> {
+async function handleCompactedEvent(context: PluginContext, sessionID: string): Promise<void> {
   try {
-    await handleSessionCompacted(ctx, sessionID);
+    await handleSessionCompacted({
+      sessionID,
+      ctx: context.ctx,
+      directory: context.directory,
+      tags: context.tags,
+    });
   } catch (error) {
     log("event: session compacted error", {
       sessionID,
@@ -182,7 +187,7 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
   }
 
   if (event.type === "session.compacted") {
-    await handleCompactedEvent(context.ctx, event.properties.sessionID);
+    await handleCompactedEvent(context, event.properties.sessionID);
     return;
   }
 

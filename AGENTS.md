@@ -45,7 +45,6 @@ opencode-solomemory/
 | Add tag type          | `src/services/tags.ts`                 | New async getter + add to `getTags()` return      |
 | Change config option  | `src/config.ts` + `src/types/index.ts` | Add to RuntimeConfig, update defaults             |
 | Add CLI command       | `src/cli/index.ts`                     | New case in command router                        |
-| Change privacy rules  | `src/services/privacy.ts`              | Regex patterns                                    |
 | Workspace detection   | `src/services/workspace.ts`            | Walk-up directory search for project markers      |
 
 ## CODE MAP
@@ -55,7 +54,7 @@ opencode-solomemory/
 | `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`            | Default export, plugin entry                           |
 | `executeTool`            | fn             | `src/tools.ts`            | Tool mode dispatcher (search, profile, list, help)     |
 | `handleSessionIdle`      | fn             | `src/sync.ts`             | Incremental conversation sync on idle                  |
-| `handleSessionCompacted` | fn             | `src/sync.ts`             | Full re-sync on session compaction                     |
+| `handleSessionCompacted` | fn             | `src/sync.ts`             | Ingest unsynced messages on compaction (skips summary) |
 | `sessionSyncState`       | Map            | `src/sync.ts`             | Incremental sync tracking per session                  |
 | `subagentSessions`       | Set            | `src/state.ts`            | Tracks subagent session IDs (skip sync)                |
 | `solomemoryClient`       | singleton      | `src/services/client.ts`  | All API communication                                  |
@@ -70,7 +69,7 @@ opencode-solomemory/
 | ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                                              |
 | `event:session.idle`      | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingest` with sourceType=conversation |
-| `event:session.compacted` | Session compacted              | Full re-sync: re-extract all messages, ingest with compacted flag                                                                 |
+| `event:session.compacted` | Session compacted              | Ingest unsynced messages since last sync, skip compaction summary (`summary === true`), update sync state                         |
 | `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                                             |
 
 ## TOOL

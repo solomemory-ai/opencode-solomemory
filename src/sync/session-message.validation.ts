@@ -3,7 +3,7 @@
  * Pure functions for identifying valid messages and filtering noise.
  */
 
-import { extractTextFromParts, type SessionMessage } from "../services/messages.js";
+import { extractContentFromParts, type SessionMessage } from "../services/messages.js";
 import type { ConversationMessage } from "../types/index.js";
 
 const NOISE_CONTENT_PREFIXES = ["\u25A3"];
@@ -31,7 +31,7 @@ export function extractValidMessages(
     .filter((msg) => msg.info.summary !== true)
     .map((msg) => ({
       role: msg.info.role,
-      content: extractTextFromParts(msg.parts),
+      content: extractContentFromParts(msg.parts),
     }))
     .filter((m) => m.content.trim().length > 0)
     .filter((m) => !isNoiseContent(m.content));
