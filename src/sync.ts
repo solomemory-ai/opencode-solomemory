@@ -2,24 +2,25 @@ import type { PluginInput } from "@opencode-ai/plugin";
 
 import { CONFIG } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
+import { detectLanguage, detectPackageManager } from "./services/detectors.js";
 import { reportError } from "./services/error-reporter.js";
+import {
+  getGitAuthor,
+  getGitRemoteOrigin,
+  getGitStatus,
+  parseRepoOwnerAndName,
+} from "./services/git.js";
 import { log } from "./services/logger.js";
 import { extractTextFromParts, type SessionMessage } from "./services/messages.js";
 import type { Tags } from "./services/tags.js";
 import {
-  detectLanguage,
-  detectPackageManager,
   getConversationTags,
   getDirName,
-  getGitAuthor,
-  getGitRemoteOrigin,
-  getGitStatus,
   getNodeVersion,
   getOS,
   getParentDirName,
   getTimezone,
   isMonorepo,
-  parseRepoOwnerAndName,
 } from "./services/tags.js";
 import { subagentSessions } from "./state.js";
 import type { ConversationMessage } from "./types/index.js";
@@ -89,12 +90,15 @@ function orEmpty(value: string | null): string {
   return value ?? "";
 }
 
-function buildConversationMetadata(
+async function buildConversationMetadata(
   input: MetadataInput,
   rawMessageCount: number,
-): Record<string, string | number | boolean> {
+): Promise<Record<string, string | number | boolean>> {
   const { sessionID, directory, tags } = input;
-  const conversationTags = getConversationTags(tags, sessionID, directory);
+  const [conversationTags, language] = await Promise.all([
+    getConversationTags(tags, sessionID, directory),
+    detectLanguage(directory),
+  ]);
   const gitRemote = getGitRemoteOrigin(directory);
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
 
@@ -119,7 +123,7 @@ function buildConversationMetadata(
     machine: conversationTags.metadata.machineHostname,
     os: getOS(),
     nodeVersion: getNodeVersion(),
-    language: orEmpty(detectLanguage(directory)),
+    language: orEmpty(language),
     packageManager: orEmpty(detectPackageManager(directory)),
   };
 }
@@ -153,7 +157,7 @@ function handleNoMessages(
 interface IngestParams {
   syncState: ConversationSyncState;
   rawMessages: ConversationMessage[];
-  conversationTags: ReturnType<typeof getConversationTags>;
+  conversationTags: Awaited<ReturnType<typeof getConversationTags>>;
   metadata: Record<string, string | number | boolean>;
   sessionID: string;
   allMessages: unknown[];
@@ -210,9 +214,11 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
     return;
   }
 
-  const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } });
-  const conversationTags = getConversationTags(tags, sessionID, directory);
-  const metadata = buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length);
+  const [sessionInfo, conversationTags, metadata] = await Promise.all([
+    ctx.client.session.get({ path: { id: sessionID } }),
+    getConversationTags(tags, sessionID, directory),
+    buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length),
+  ]);
 
   if (sessionInfo.data?.title) {
     metadata.title = sessionInfo.data.title;

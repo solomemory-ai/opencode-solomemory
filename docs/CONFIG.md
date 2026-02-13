@@ -9,7 +9,6 @@ Optional. Create `~/.config/opencode/solomemory.jsonc` to customize behavior:
   "maxProjectMemories": 10,
   "maxProfileItems": 5,
   "injectProfile": true,
-  "containerTagPrefix": "opencode",
   "platformIdentifier": "opencode",
   "autoSyncConversations": true,
 }
@@ -26,6 +25,5 @@ API key is configured during install (`npx oc-solomemory@latest install --api-ke
 | `maxProjectMemories`    | number  | `10`                         | Max project-scoped memories injected               |
 | `maxProfileItems`       | number  | `5`                          | Max profile items shown                            |
 | `injectProfile`         | boolean | `true`                       | Inject user profile into context                   |
-| `containerTagPrefix`    | string  | `opencode`                   | Prefix for memory container tags                   |
 | `platformIdentifier`    | string  | `opencode`                   | Platform identifier sent with synced conversations |
 | `autoSyncConversations` | boolean | `true`                       | Auto-sync conversations on session idle            |

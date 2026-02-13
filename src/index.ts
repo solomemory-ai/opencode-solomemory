@@ -198,10 +198,10 @@ interface InitResult {
   pluginContext: PluginContext;
 }
 
-function initPlugin(ctx: PluginInput): InitResult {
+async function initPlugin(ctx: PluginInput): Promise<InitResult> {
   const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
   const { directory } = ctx;
-  const tags = getTags(directory);
+  const tags = await getTags(directory);
   const projectScopeTag = tags.repository ?? tags.project;
 
   log(`oc-solomemory v${version}`, {
@@ -222,10 +222,10 @@ function initPlugin(ctx: PluginInput): InitResult {
   return { projectScopeTag, pluginContext: { ctx, directory, tags } };
 }
 
-export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
-  const { projectScopeTag, pluginContext } = initPlugin(ctx);
+export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
+  const { projectScopeTag, pluginContext } = await initPlugin(ctx);
 
-  return Promise.resolve({
+  return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     "chat.message": async (input, output) => {
       if (!isConfigured()) return;
@@ -261,7 +261,7 @@ export const SolomemoryPlugin: Plugin = (ctx: PluginInput) => {
     event: async (input) => {
       await handleEvent(input.event, pluginContext);
     },
-  });
+  };
 };
 
 export default SolomemoryPlugin;

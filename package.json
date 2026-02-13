@@ -37,7 +37,10 @@
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.0.162",
-    "@opencode-ai/sdk": "^1.0.162"
+    "@opencode-ai/sdk": "^1.0.162",
+    "@vercel/frameworks": "^3.17.1",
+    "@vercel/fs-detectors": "^5.8.6",
+    "linguist-js": "^2.9.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

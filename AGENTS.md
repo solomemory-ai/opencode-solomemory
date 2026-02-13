@@ -42,7 +42,7 @@ opencode-solomemory/
 | Modify sync behavior  | `src/sync.ts`                          | `handleSessionIdle()`, `handleSessionCompacted()` |
 | Add API endpoint      | `src/services/client.ts`               | New method + type in `client-types.ts`            |
 | Change context format | `src/services/context.ts`              | `formatContextForPrompt()`                        |
-| Add tag type          | `src/services/tags.ts`                 | New getter + add to `getTags()` return            |
+| Add tag type          | `src/services/tags.ts`                 | New async getter + add to `getTags()` return      |
 | Change config option  | `src/config.ts` + `src/types/index.ts` | Add to RuntimeConfig, update defaults             |
 | Add CLI command       | `src/cli/index.ts`                     | New case in command router                        |
 | Change privacy rules  | `src/services/privacy.ts`              | Regex patterns                                    |
@@ -60,7 +60,7 @@ opencode-solomemory/
 | `subagentSessions`       | Set            | `src/state.ts`            | Tracks subagent session IDs (skip sync)                |
 | `solomemoryClient`       | singleton      | `src/services/client.ts`  | All API communication                                  |
 | `CONFIG`                 | Proxy          | `src/config.ts`           | Lazy-init config, accessed everywhere                  |
-| `getTags`                | fn             | `src/services/tags.ts`    | Container tag generation (project, repo, branch, etc.) |
+| `getTags`                | async fn       | `src/services/tags.ts`    | Container tag generation (project, repo, branch, etc.) |
 | `formatContextForPrompt` | fn             | `src/services/context.ts` | Memory → system prompt injection                       |
 | `injectedSessions`       | Set            | `src/index.ts`            | Prevents double-injection per session                  |
 
@@ -79,18 +79,26 @@ opencode-solomemory/
 
 ## MEMORY SCOPING
 
-| Scope   | Tag Source                              | Example                   |
-| ------- | --------------------------------------- | ------------------------- |
-| User    | `user` (hardcoded)                      | Cross-project preferences |
-| Project | Workspace dir hash (sha256, 16 chars)   | `proj_a1b2c3d4e5f6`       |
-| Repo    | Git remote URL (normalized)             | `github.com/org/repo`     |
-| Branch  | Git branch name (sanitized, NOT hashed) | `branch_feat/auth`        |
+| Scope       | Tag Source                                                                 | Example             |
+| ----------- | -------------------------------------------------------------------------- | ------------------- |
+| User        | `user` (hardcoded)                                                         | Cross-project prefs |
+| Project     | Workspace dir hash (sha256, full 64 chars)                                 | `proj_<sha256>`     |
+| Repo        | Git remote URL hash (sha256, full 64 chars)                                | `repo_<sha256>`     |
+| Branch      | Git branch name (sanitized, NOT hashed)                                    | `branch_feat_auth`  |
+| Language    | `linguist-js` detection + heuristic fallback                               | `lang_typescript`   |
+| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `fw_nextjs`         |
+| Org         | Git remote owner (lowercase)                                               | `org_mycompany`     |
+| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `pkgmgr_bun`        |
+| OS          | `os.platform()`                                                            | `os_linux`          |
+| Machine     | Hostname hash (sha256, full 64 chars)                                      | `machine_<sha256>`  |
+| Workspace   | Monorepo workspace name (sanitized)                                        | `workspace_api`     |
+| Platform    | Config `platformIdentifier`                                                | `plat_opencode`     |
 
 ## CONFIG RESOLUTION ORDER
 
 `SOLOMEMORY_*` env vars > `~/.config/opencode/solomemory.jsonc` > `~/.config/opencode/credentials.json` > defaults
 
-Key defaults: `similarityThreshold=0.6`, `maxMemories=5`, `maxProjectMemories=10`, `maxProfileItems=5`, `containerTagPrefix='opencode'`
+Key defaults: `similarityThreshold=0.6`, `maxMemories=5`, `maxProjectMemories=10`, `maxProfileItems=5`
 
 ## CONVENTIONS
 

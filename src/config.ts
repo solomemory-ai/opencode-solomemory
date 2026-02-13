@@ -20,7 +20,6 @@ interface SolomemoryConfig {
   maxProjectMemories?: number;
   maxProfileItems?: number;
   injectProfile?: boolean;
-  containerTagPrefix?: string;
   platformIdentifier?: string;
   autoSyncConversations?: boolean;
   filterPrompt?: string;
@@ -31,7 +30,6 @@ const DEFAULTS = {
   maxProjectMemories: 10,
   maxProfileItems: 5,
   injectProfile: true,
-  containerTagPrefix: "opencode",
   platformIdentifier: "opencode",
   autoSyncConversations: true,
   filterPrompt:
@@ -84,7 +82,6 @@ function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
     maxProjectMemories: fileConfig.maxProjectMemories ?? DEFAULTS.maxProjectMemories,
     maxProfileItems: fileConfig.maxProfileItems ?? DEFAULTS.maxProfileItems,
     injectProfile: fileConfig.injectProfile ?? DEFAULTS.injectProfile,
-    containerTagPrefix: fileConfig.containerTagPrefix ?? DEFAULTS.containerTagPrefix,
     platformIdentifier: fileConfig.platformIdentifier ?? DEFAULTS.platformIdentifier,
     autoSyncConversations: fileConfig.autoSyncConversations ?? DEFAULTS.autoSyncConversations,
     filterPrompt: fileConfig.filterPrompt ?? DEFAULTS.filterPrompt,
@@ -120,7 +117,6 @@ export interface RuntimeConfig {
   readonly maxProjectMemories: number;
   readonly maxProfileItems: number;
   readonly injectProfile: boolean;
-  readonly containerTagPrefix: string;
   readonly platformIdentifier: string;
   readonly autoSyncConversations: boolean;
   readonly filterPrompt: string;
@@ -140,7 +136,6 @@ function isRuntimeConfigKey(prop: string): prop is keyof RuntimeConfig {
     "maxProjectMemories",
     "maxProfileItems",
     "injectProfile",
-    "containerTagPrefix",
     "platformIdentifier",
     "autoSyncConversations",
     "filterPrompt",
@@ -162,7 +157,6 @@ const emptyConfig: RuntimeConfig = {
   maxProjectMemories: 0,
   maxProfileItems: 0,
   injectProfile: false,
-  containerTagPrefix: "",
   platformIdentifier: "",
   autoSyncConversations: false,
   filterPrompt: "",
