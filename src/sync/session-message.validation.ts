@@ -7,6 +7,7 @@ import { extractContentFromParts, type SessionMessage } from "../services/messag
 import type { ConversationMessage } from "../types/index.js";
 
 const NOISE_CONTENT_PREFIXES = ["\u25A3"];
+const SYNTHETIC_USER_PATTERNS = ["Continue if you have next steps"];
 
 function isSessionMessage(value: unknown): value is SessionMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -20,47 +21,26 @@ function isNoiseContent(content: string): boolean {
   return NOISE_CONTENT_PREFIXES.some((prefix) => content.startsWith(prefix));
 }
 
-function findLastUserMessageIndex(messages: unknown[]): number {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (isSessionMessage(msg) && msg.info.role === "user") {
-      return i;
-    }
-  }
-  return -1;
+function isSyntheticUserMessage(msg: SessionMessage): boolean {
+  if (msg.info.role !== "user") return false;
+  const content = extractContentFromParts(msg.parts);
+  return SYNTHETIC_USER_PATTERNS.some((pattern) => content.startsWith(pattern));
 }
 
-/**
- * Extract the current exchange: [last user message → end of messages].
- *
- * Each idle/compacted event should only capture the latest exchange,
- * not replay from the beginning. The lastSyncedIndex is used as a guard
- * to detect "nothing new" — if the end of the array was already synced,
- * we return empty to skip.
- *
- * Fallback: when no user message is found (e.g. post-compaction, where
- * the user message was removed from the array), extract all new messages
- * since lastSyncedIndex so orphaned assistant messages aren't lost.
- */
 export function extractValidMessages(
   allMessages: unknown[],
-  lastSyncedIndex: number,
+  extractFrom: number,
 ): ConversationMessage[] {
-  if (allMessages.length - 1 <= lastSyncedIndex) {
+  if (allMessages.length - 1 <= extractFrom) {
     return [];
   }
 
-  const lastUserIndex = findLastUserMessageIndex(allMessages);
-  const sliceStart =
-    lastUserIndex === -1
-      ? lastSyncedIndex + 1 // fallback: incremental from last sync
-      : lastUserIndex; // normal: exchange-scoped from last user msg
+  const newMessages = allMessages.slice(extractFrom + 1);
 
-  const exchangeMessages = allMessages.slice(sliceStart);
-
-  return exchangeMessages
+  return newMessages
     .filter((msg): msg is SessionMessage => isSessionMessage(msg))
     .filter((msg) => msg.info.summary !== true)
+    .filter((msg) => !isSyntheticUserMessage(msg))
     .map((msg) => ({
       role: msg.info.role,
       content: extractContentFromParts(msg.parts),

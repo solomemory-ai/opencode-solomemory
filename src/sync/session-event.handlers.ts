@@ -16,39 +16,15 @@ import { extractValidMessages } from "./session-message.validation.js";
 import type { SessionIdleInput } from "./sync.types.js";
 
 export async function handleSessionCompacted(input: SessionIdleInput): Promise<void> {
-  const { sessionID, ctx, directory, tags } = input;
+  const { sessionID, ctx } = input;
 
-  const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
-  const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
+  const { syncState } = await fetchSessionMessages(ctx, sessionID);
 
-  if (rawMessages.length === 0) {
-    handleNoMessages(sessionID, syncState, allMessages);
-    log("event: session compacted, no unsynced messages", { sessionID });
-    return;
-  }
+  syncState.compactionAnchorIndex ??= syncState.lastSyncedMessageIndex;
 
-  const [sessionInfo, conversationTags, metadata] = await Promise.all([
-    ctx.client.session.get({ path: { id: sessionID } }),
-    getConversationTags(tags, sessionID, directory),
-    buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length),
-  ]);
-
-  if (sessionInfo.data?.title) {
-    metadata.title = sessionInfo.data.title;
-  }
-
-  await ingestAndLogResult({
-    syncState,
-    rawMessages,
-    conversationTags,
-    metadata,
+  log("event: session compacted, anchor set", {
     sessionID,
-    allMessages,
-  });
-
-  log("event: session compacted, unsynced messages ingested", {
-    sessionID,
-    messageCount: rawMessages.length,
+    anchorIndex: syncState.compactionAnchorIndex,
   });
 }
 
@@ -61,7 +37,11 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
   }
 
   const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
-  const rawMessages = extractValidMessages(allMessages, syncState.lastSyncedMessageIndex);
+
+  const extractFrom = syncState.compactionAnchorIndex ?? syncState.lastSyncedMessageIndex;
+  const rawMessages = extractValidMessages(allMessages, extractFrom);
+
+  syncState.compactionAnchorIndex = undefined;
 
   if (rawMessages.length === 0) {
     handleNoMessages(sessionID, syncState, allMessages);

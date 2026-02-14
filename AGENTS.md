@@ -59,36 +59,36 @@ opencode-solomemory/
 
 ## CODE MAP
 
-| Symbol                      | Type           | Location                                   | Role                                                               |
-| --------------------------- | -------------- | ------------------------------------------ | ------------------------------------------------------------------ |
-| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                       |
-| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)       |
-| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Exchange-scoped conversation sync on idle (last user msg → end)    |
-| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Ingest unsynced messages on compaction (skips summary)             |
-| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                              |
-| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                           |
-| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                   |
-| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Exchange-scoped message extraction + validation                    |
-| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                       |
-| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                            |
-| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                              |
-| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                              |
-| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)             |
-| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                       |
-| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                            |
-| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection |
-| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                              |
-| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection        |
-| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                    |
+| Symbol                      | Type           | Location                                   | Role                                                                            |
+| --------------------------- | -------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                                    |
+| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)                    |
+| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs |
+| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)               |
+| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                           |
+| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                                        |
+| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                                |
+| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic               |
+| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                                    |
+| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                         |
+| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                           |
+| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                           |
+| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)                          |
+| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                                    |
+| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                                         |
+| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection              |
+| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                           |
+| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                     |
+| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                                 |
 
 ## HOOKS
 
-| Hook                      | Trigger                        | Action                                                                                                            |
-| ------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project topics → inject as synthetic Part with CTA                       |
-| `event:session.idle`      | Session idle                   | Exchange-scoped sync: extract last user message → end, build metadata, call `ingest` with sourceType=conversation |
-| `event:session.compacted` | Session compacted              | Ingest unsynced messages since last sync, skip compaction summary (`summary === true`), update sync state         |
-| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` + `subagentSessions`                                             |
+| Hook                      | Trigger                        | Action                                                                                                    |
+| ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project topics → inject as synthetic Part with CTA               |
+| `event:session.idle`      | Session idle                   | Incremental sync: extract from compaction anchor (or lastSynced), filter synthetic + summary msgs, ingest |
+| `event:session.compacted` | Session compacted              | Set compaction anchor on sync state to freeze extraction start point; defer ingest to next idle event     |
+| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` + `subagentSessions`                                     |
 
 ## TOOL
 

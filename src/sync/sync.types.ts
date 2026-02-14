@@ -12,6 +12,8 @@ import type { ConversationMessage } from "../types/index.js";
 export interface ConversationSyncState {
   lastSyncedMessageIndex: number;
   conversationId: string;
+  /** Set by compacted handler to anchor the extraction start for the next idle ingest. */
+  compactionAnchorIndex?: number;
 }
 
 export interface SessionIdleInput {
