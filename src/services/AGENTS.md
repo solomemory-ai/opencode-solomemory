@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-10 service modules + 1 types module. Client is the core. All services are stateless functions or singleton classes.
+11 service modules + 1 types module. Client is the core. All services are stateless functions or singleton classes.
 
 ## FILES
 
@@ -27,6 +27,7 @@
 | `auth.ts`                          | 41  | Token resolution: `loadCredentials`/`saveCredentials`/`clearCredentials` at `~/.solomemory-opencode/credentials.json` (0o700 dir, 0o600 file)                                                                   |
 | `logger.ts`                        | 51  | Async batched file logger to `~/.opencode-solomemory.log`. Queue + `setImmediate` flush. Session header on first write                                                                                          |
 | `error-reporter.ts`                | 113 | Fire-and-forget error reporting to server. Sends structured errors to `POST /errors` (server forwards to Sentry). DSN never leaves server                                                                       |
+| `payload-dump.ts`                  | 68  | Ingest payload dumper: writes each `IngestPayload` as timestamped JSON file to configurable dir. Fire-and-forget, gated by `CONFIG.dumpIngestPayloads`. Default dir `~/.solomemory-dumps/`                      |
 
 ## API ENDPOINTS (client.ts)
 
@@ -48,12 +49,14 @@
 ## DEPENDENCY FLOW
 
 ```
-index.ts → client.ts (facade) → client/index.ts → client/*.methods.ts → client/api-transport.http.ts → auth.ts (token)
-         → tags.ts (container tags) → config.ts
-         │                          → git.ts (git helpers)
-         │                          → detectors.ts (language/framework/pkgmgr)
-         → messages.ts (extract messages)
+index.ts → sync.ts (facade) → sync/session-event.handlers.ts → sync/conversation-ingest.service.ts → client/ (ingest)
+         │                                                     → payload-dump.ts (optional, config-gated)
+         │                  → sync/conversation-metadata.mapper.ts → tags.ts → config.ts
+         │                                                                   → git.ts
+         │                                                                   → detectors.ts
+         │                  → sync/session-message.validation.ts → messages.ts
          → context.ts (format injection) → config.ts (limits)
+         → client.ts (facade) → client/index.ts → client/*.methods.ts → client/api-transport.http.ts → auth.ts (token)
 ```
 
 ## CONVENTIONS
