@@ -25,14 +25,23 @@ import {
 import { getWorkspaceInfo } from "../services/workspace.js";
 import type { MetadataInput } from "./sync.types.js";
 
-function orEmpty(value: string | null): string {
-  return value ?? "";
+type MetadataValue = string | number | boolean | string[];
+
+/** Remove entries with null, empty string, or empty array values */
+function stripEmpty(record: Record<string, MetadataValue | null>): Record<string, MetadataValue> {
+  const result: Record<string, MetadataValue> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value === null || value === "") continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    result[key] = value;
+  }
+  return result;
 }
 
 export async function buildConversationMetadata(
   input: MetadataInput,
   rawMessageCount: number,
-): Promise<Record<string, string | number | boolean | string[]>> {
+): Promise<Record<string, MetadataValue>> {
   const { sessionID, directory } = input;
   const gitRoot = getGitRepoRoot(directory);
   const workspace = getWorkspaceInfo(directory, gitRoot);
@@ -45,7 +54,7 @@ export async function buildConversationMetadata(
   const gitRemote = gitRoot ? getGitRemoteOrigin(directory) : null;
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
 
-  return {
+  return stripEmpty({
     platform: CONFIG.platformIdentifier,
     sessionId: sessionID,
     syncedAt: new Date().toISOString(),
@@ -54,20 +63,20 @@ export async function buildConversationMetadata(
     directory,
     cwd: getDirName(directory),
     parentDir: getParentDirName(directory),
-    repository: orEmpty(gitRemote),
-    repoOwner: orEmpty(repoOwner),
-    repoName: orEmpty(repoName),
-    branch: orEmpty(gitRoot ? getGitBranch(directory) : null),
-    gitAuthor: orEmpty(gitRoot ? getGitAuthor(directory) : null),
-    gitStatus: orEmpty(gitRoot ? getGitStatus(directory) : null),
-    workspace: orEmpty(workspace?.name ?? null),
-    workspaceType: orEmpty(workspace?.type ?? null),
+    repository: gitRemote,
+    repoOwner,
+    repoName,
+    branch: gitRoot ? getGitBranch(directory) : null,
+    gitAuthor: gitRoot ? getGitAuthor(directory) : null,
+    gitStatus: gitRoot ? getGitStatus(directory) : null,
+    workspace: workspace?.name ?? null,
+    workspaceType: workspace?.type ?? null,
     isMonorepo: isMonorepo(directory),
     machine: getMachineId(),
     os: getOS(),
     nodeVersion: getNodeVersion(),
     languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")),
-    packageManager: orEmpty(detectPackageManager(directory)),
-    framework: orEmpty(framework),
-  };
+    packageManager: detectPackageManager(directory),
+    framework,
+  });
 }
