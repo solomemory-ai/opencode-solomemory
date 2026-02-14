@@ -33,7 +33,7 @@ import {
 export async function addMemory(
   content: string,
   containerTag: string,
-  metadata?: Record<string, string | number | boolean>,
+  metadata?: Record<string, string | number | boolean | string[]>,
 ): Promise<AddMemoryResult> {
   log("addMemory: start", { containerTag, contentLength: content.length });
   const result = await ingest({

@@ -57,7 +57,7 @@ export class SolomemoryClient {
   addMemory(
     content: string,
     containerTag: string,
-    metadata?: Record<string, string | number | boolean>,
+    metadata?: Record<string, string | number | boolean | string[]>,
   ): Promise<AddMemoryResult> {
     return addMemory(content, containerTag, metadata);
   }
