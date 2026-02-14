@@ -42,15 +42,40 @@ export function extractReasoningText(parts: Part[]): string {
     .join("\n");
 }
 
+/**
+ * Input fields to try (in priority order) when tool title is empty.
+ * Matches the fallback strategy used by OpenCode's own CLI (run.ts).
+ */
+const TITLE_FALLBACK_FIELDS = [
+  "pattern",
+  "filePath",
+  "description",
+  "command",
+  "url",
+  "query",
+] as const;
+
+function resolveToolTitle(title: string, input: Record<string, unknown>): string {
+  if (title) return title;
+
+  for (const field of TITLE_FALLBACK_FIELDS) {
+    const value = input[field];
+    if (typeof value === "string" && value) return value;
+  }
+
+  return "";
+}
+
 function formatToolContent(tool: string, title: string): string {
-  return `${tool}: ${title}`;
+  return title ? `${tool}: ${title}` : tool;
 }
 
 export function extractToolEntries(parts: Part[]): ConversationMessage[] {
   const results: ConversationMessage[] = [];
   for (const part of parts) {
     if (part.type === "tool" && part.state.status === "completed") {
-      results.push({ role: "tool", content: formatToolContent(part.tool, part.state.title) });
+      const title = resolveToolTitle(part.state.title, part.state.input);
+      results.push({ role: "tool", content: formatToolContent(part.tool, title) });
     }
   }
   return results;
