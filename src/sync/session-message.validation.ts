@@ -3,7 +3,11 @@
  * Pure functions for identifying valid messages and filtering noise.
  */
 
-import { extractContentFromParts, type SessionMessage } from "../services/messages.js";
+import {
+  extractContentFromParts,
+  extractReasoningText,
+  type SessionMessage,
+} from "../services/messages.js";
 import type { ConversationMessage } from "../types/index.js";
 
 const NOISE_CONTENT_PREFIXES = ["\u25A3"];
@@ -51,10 +55,16 @@ export function extractValidMessages(
     .filter((msg): msg is SessionMessage => isSessionMessage(msg))
     .filter((msg) => msg.info.summary !== true)
     .filter((msg) => !isSyntheticUserMessage(msg))
-    .map((msg) => ({
-      role: msg.info.role,
-      content: extractContentFromParts(msg.parts),
-    }))
-    .filter((m) => m.content.trim().length > 0)
-    .filter((m) => !isNoiseContent(m.content));
+    .flatMap((msg) => {
+      const results: ConversationMessage[] = [];
+      const reasoning = extractReasoningText(msg.parts);
+      if (reasoning.trim()) {
+        results.push({ role: "thinking", content: reasoning });
+      }
+      const content = extractContentFromParts(msg.parts);
+      if (content.trim() && !isNoiseContent(content)) {
+        results.push({ role: msg.info.role, content });
+      }
+      return results;
+    });
 }
