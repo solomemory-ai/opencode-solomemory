@@ -51,15 +51,19 @@ function isPackageJson(data: unknown): data is PackageJson {
   return typeof data === "object" && data !== null;
 }
 
+function hasBunLock(dir: string): boolean {
+  return existsSync(path.join(dir, "bun.lockb")) || existsSync(path.join(dir, "bun.lock"));
+}
+
 function detectPackageManagerType(rootDir: string): WorkspaceInfo["type"] {
   if (existsSync(path.join(rootDir, "pnpm-workspace.yaml"))) return "pnpm";
-  if (existsSync(path.join(rootDir, "bun.lockb"))) return "bun";
+  if (hasBunLock(rootDir)) return "bun";
   if (existsSync(path.join(rootDir, "yarn.lock"))) return "yarn";
   return "npm";
 }
 
 function detectRootPackageType(pkgDir: string): WorkspaceInfo["type"] {
-  if (existsSync(path.join(pkgDir, "bun.lockb"))) return "bun";
+  if (hasBunLock(pkgDir)) return "bun";
   if (existsSync(path.join(pkgDir, "pnpm-lock.yaml"))) return "pnpm";
   if (existsSync(path.join(pkgDir, "yarn.lock"))) return "yarn";
   return "npm";

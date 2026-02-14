@@ -59,9 +59,18 @@ export function getGitAuthor(directory?: string): string | null {
 }
 
 export function getGitStatus(directory?: string): string | null {
-  const status = execGitCommand("git status --porcelain", directory);
-  if (status === null) return null;
-  return status.trim().length === 0 ? "clean" : "dirty";
+  try {
+    // Hardcoded git command, not user input — same pattern as execGitCommand above
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
+    const result = execSync("git status --porcelain", {
+      encoding: "utf8",
+      cwd: directory,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    return result.length === 0 ? "clean" : "dirty";
+  } catch {
+    return null;
+  }
 }
 
 export function parseRepoOwnerAndName(gitRemoteOrigin: string | null): {
