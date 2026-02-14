@@ -34,9 +34,13 @@ function findLastUserMessageIndex(messages: unknown[]): number {
  * Extract the current exchange: [last user message → end of messages].
  *
  * Each idle/compacted event should only capture the latest exchange,
- * not replay from the beginning. The lastSyncedIndex is used solely
- * as a guard to detect "nothing new" — if the end of the array was
- * already synced, we return empty to skip.
+ * not replay from the beginning. The lastSyncedIndex is used as a guard
+ * to detect "nothing new" — if the end of the array was already synced,
+ * we return empty to skip.
+ *
+ * Fallback: when no user message is found (e.g. post-compaction, where
+ * the user message was removed from the array), extract all new messages
+ * since lastSyncedIndex so orphaned assistant messages aren't lost.
  */
 export function extractValidMessages(
   allMessages: unknown[],
@@ -47,11 +51,12 @@ export function extractValidMessages(
   }
 
   const lastUserIndex = findLastUserMessageIndex(allMessages);
-  if (lastUserIndex === -1) {
-    return [];
-  }
+  const sliceStart =
+    lastUserIndex === -1
+      ? lastSyncedIndex + 1 // fallback: incremental from last sync
+      : lastUserIndex; // normal: exchange-scoped from last user msg
 
-  const exchangeMessages = allMessages.slice(lastUserIndex);
+  const exchangeMessages = allMessages.slice(sliceStart);
 
   return exchangeMessages
     .filter((msg): msg is SessionMessage => isSessionMessage(msg))

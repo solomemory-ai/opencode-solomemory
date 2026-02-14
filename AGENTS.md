@@ -58,30 +58,30 @@ opencode-solomemory/
 
 ## CODE MAP
 
-| Symbol                   | Type           | Location                                  | Role                                                   |
-| ------------------------ | -------------- | ----------------------------------------- | ------------------------------------------------------ |
-| `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`                            | Default export, plugin entry                           |
-| `executeTool`            | fn             | `src/tools.ts`                            | Tool mode dispatcher (search, profile, list, help)     |
-| `handleSessionIdle`      | fn             | `src/sync/session-event.handlers.ts`      | Incremental conversation sync on idle                  |
-| `handleSessionCompacted` | fn             | `src/sync/session-event.handlers.ts`      | Ingest unsynced messages on compaction (skips summary) |
-| `sessionSyncState`       | Map            | `src/sync/sync-state.store.ts`            | Incremental sync tracking per session                  |
-| `ingestConversation`     | fn             | `src/sync/conversation-ingest.service.ts` | Build payload, dump if enabled, call API               |
-| `dumpIngestPayload`      | fn             | `src/services/payload-dump.ts`            | Write payload JSON to disk (fire-and-forget)           |
-| `subagentSessions`       | Set            | `src/state.ts`                            | Tracks subagent session IDs (skip sync)                |
-| `solomemoryClient`       | singleton      | `src/services/client.ts`                  | All API communication                                  |
-| `CONFIG`                 | Proxy          | `src/config.ts`                           | Lazy-init config, accessed everywhere                  |
-| `getTags`                | async fn       | `src/services/tags.ts`                    | Container tag generation (project, repo, branch, etc.) |
-| `formatContextForPrompt` | fn             | `src/services/context.ts`                 | Memory → system prompt injection                       |
-| `injectedSessions`       | Set            | `src/index.ts`                            | Prevents double-injection per session                  |
+| Symbol                   | Type           | Location                                  | Role                                                            |
+| ------------------------ | -------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`                            | Default export, plugin entry                                    |
+| `executeTool`            | fn             | `src/tools.ts`                            | Tool mode dispatcher (search, profile, list, help)              |
+| `handleSessionIdle`      | fn             | `src/sync/session-event.handlers.ts`      | Exchange-scoped conversation sync on idle (last user msg → end) |
+| `handleSessionCompacted` | fn             | `src/sync/session-event.handlers.ts`      | Ingest unsynced messages on compaction (skips summary)          |
+| `sessionSyncState`       | Map            | `src/sync/sync-state.store.ts`            | Incremental sync tracking per session                           |
+| `ingestConversation`     | fn             | `src/sync/conversation-ingest.service.ts` | Build payload, dump if enabled, call API                        |
+| `dumpIngestPayload`      | fn             | `src/services/payload-dump.ts`            | Write payload JSON to disk (fire-and-forget)                    |
+| `subagentSessions`       | Set            | `src/state.ts`                            | Tracks subagent session IDs (skip sync)                         |
+| `solomemoryClient`       | singleton      | `src/services/client.ts`                  | All API communication                                           |
+| `CONFIG`                 | Proxy          | `src/config.ts`                           | Lazy-init config, accessed everywhere                           |
+| `getTags`                | async fn       | `src/services/tags.ts`                    | Container tag generation (project, repo, branch, etc.)          |
+| `formatContextForPrompt` | fn             | `src/services/context.ts`                 | Memory → system prompt injection                                |
+| `injectedSessions`       | Set            | `src/index.ts`                            | Prevents double-injection per session                           |
 
 ## HOOKS
 
-| Hook                      | Trigger                        | Action                                                                                                                            |
-| ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                                              |
-| `event:session.idle`      | Session idle                   | Incremental sync: extract new messages since `lastSyncedMessageIndex`, build metadata, call `ingest` with sourceType=conversation |
-| `event:session.compacted` | Session compacted              | Ingest unsynced messages since last sync, skip compaction summary (`summary === true`), update sync state                         |
-| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                                             |
+| Hook                      | Trigger                        | Action                                                                                                            |
+| ------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                              |
+| `event:session.idle`      | Session idle                   | Exchange-scoped sync: extract last user message → end, build metadata, call `ingest` with sourceType=conversation |
+| `event:session.compacted` | Session compacted              | Ingest unsynced messages since last sync, skip compaction summary (`summary === true`), update sync state         |
+| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                             |
 
 ## TOOL
 

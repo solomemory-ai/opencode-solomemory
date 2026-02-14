@@ -1,6 +1,6 @@
 # sync/
 
-Conversation sync domain — handles incremental syncing of session messages to the solomemory API.
+Conversation sync domain — handles exchange-scoped syncing of session messages to the solomemory API (last user message → end).
 
 ## What belongs here
 
