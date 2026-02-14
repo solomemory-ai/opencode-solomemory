@@ -66,7 +66,9 @@ opencode-solomemory/
 | `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs                           |
 | `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)                                         |
 | `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                                                     |
-| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                                                                  |
+| `fetchSessionMessages`      | fn             | `src/sync/conversation-ingest.service.ts`  | Fetch session messages + init sync state on reload                                                        |
+| `handleNoMessages`          | fn             | `src/sync/conversation-ingest.service.ts`  | Update sync state when no valid messages to sync                                                          |
+| `ingestAndLogResult`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, optional dump, call API, log result                                                        |
 | `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                                                          |
 | `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic, emits thinking + tool entries          |
 | `findLastUserMessageIndex`  | fn             | `src/sync/session-message.validation.ts`   | Scans backward for last user message; used to initialize sync state on session reload                     |
