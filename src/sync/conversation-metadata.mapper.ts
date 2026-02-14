@@ -71,7 +71,7 @@ export async function buildConversationMetadata(
     gitStatus: gitRoot ? getGitStatus(directory) : null,
     workspace: workspace?.name ?? null,
     workspaceType: workspace?.type ?? null,
-    isMonorepo: isMonorepo(directory),
+    isMonorepo: gitRoot ? isMonorepo(gitRoot) : null,
     machine: getMachineId(),
     os: getOS(),
     nodeVersion: getNodeVersion(),

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { hostname, platform } from "node:os";
 import path from "node:path";
 
@@ -32,6 +32,15 @@ export function isMonorepo(directory: string): boolean {
   const indicators = ["pnpm-workspace.yaml", "lerna.json", "nx.json", "rush.json", "turbo.json"];
   for (const file of indicators) {
     if (existsSync(path.join(directory, file))) return true;
+  }
+  const pkgPath = path.join(directory, "package.json");
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg: unknown = JSON.parse(readFileSync(pkgPath, "utf8"));
+      if (typeof pkg === "object" && pkg !== null && "workspaces" in pkg) return true;
+    } catch {
+      /* empty */
+    }
   }
   return false;
 }
