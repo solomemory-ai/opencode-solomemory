@@ -83,7 +83,7 @@ export function getWorkspaceTag(directory: string): string | null {
 
 export async function getLanguageTags(directory: string): Promise<string[]> {
   const languages = await detectLanguages(directory);
-  return languages.map((lang) => `lang_${lang}`);
+  return languages.map((lang) => `lang_${lang.replaceAll(/[^a-zA-Z0-9_-]/g, "_")}`);
 }
 
 export function getOrgTag(directory: string): string | null {
