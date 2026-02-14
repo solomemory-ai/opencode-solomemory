@@ -22,7 +22,7 @@ export async function fetchSessionMessages(
     path: { id: sessionID },
   });
   const allMessages: unknown[] = messagesResponse.data ?? [];
-  const syncState = sessionSyncState.get(sessionID) ?? initSyncState(sessionID, allMessages);
+  const syncState = sessionSyncState.get(sessionID) ?? initSyncState(sessionID);
   return { allMessages, syncState };
 }
 
@@ -50,10 +50,11 @@ export async function ingestAndLogResult(params: IngestParams): Promise<void> {
     await dumpIngestPayload(payload);
   }
 
+  syncState.lastSyncedMessageIndex = allMessages.length - 1;
+
   const result = await solomemoryClient.ingest(payload);
 
   if (result.success) {
-    syncState.lastSyncedMessageIndex = allMessages.length - 1;
     log("event: conversation synced", {
       sessionID,
       messageCount: rawMessages.length,

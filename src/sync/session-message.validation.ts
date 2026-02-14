@@ -20,13 +20,40 @@ function isNoiseContent(content: string): boolean {
   return NOISE_CONTENT_PREFIXES.some((prefix) => content.startsWith(prefix));
 }
 
+function findLastUserMessageIndex(messages: unknown[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (isSessionMessage(msg) && msg.info.role === "user") {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Extract the current exchange: [last user message → end of messages].
+ *
+ * Each idle/compacted event should only capture the latest exchange,
+ * not replay from the beginning. The lastSyncedIndex is used solely
+ * as a guard to detect "nothing new" — if the end of the array was
+ * already synced, we return empty to skip.
+ */
 export function extractValidMessages(
   allMessages: unknown[],
-  startIndex: number,
+  lastSyncedIndex: number,
 ): ConversationMessage[] {
-  const newMessages = allMessages.slice(startIndex + 1);
+  if (allMessages.length - 1 <= lastSyncedIndex) {
+    return [];
+  }
 
-  return newMessages
+  const lastUserIndex = findLastUserMessageIndex(allMessages);
+  if (lastUserIndex === -1) {
+    return [];
+  }
+
+  const exchangeMessages = allMessages.slice(lastUserIndex);
+
+  return exchangeMessages
     .filter((msg): msg is SessionMessage => isSessionMessage(msg))
     .filter((msg) => msg.info.summary !== true)
     .map((msg) => ({
