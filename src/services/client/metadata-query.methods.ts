@@ -73,7 +73,8 @@ export async function getTopics(
 ): Promise<GetTopicsResult> {
   log("getTopics: start", { containerTag, limit });
   try {
-    const params = new URLSearchParams({ containerTags: containerTag, limit: String(limit) });
+    const filter = JSON.stringify([{ field: "tags", operator: "eq", value: [containerTag] }]);
+    const params = new URLSearchParams({ metadataFilters: filter, limit: String(limit) });
     const result = await get("/memories/topics?" + params.toString());
     if (!isTopicsResponse(result)) throw new Error("Invalid topics response format");
     log("getTopics: success", { count: result.topics.length });

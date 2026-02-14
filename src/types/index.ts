@@ -54,6 +54,6 @@ export interface JobStatus {
 
 export interface MetadataFilter {
   field: string;
-  value: string | number | boolean;
+  value: string | number | boolean | string[];
   operator?: "eq" | "ne" | "contains";
 }

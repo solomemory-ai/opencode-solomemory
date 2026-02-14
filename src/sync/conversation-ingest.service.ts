@@ -49,8 +49,10 @@ export async function ingestAndLogResult(params: IngestParams): Promise<void> {
     sourceId: syncState.conversationId,
     sourceType: "conversation",
     content: { messages: rawMessages },
-    containerTags: conversationTags.containerTags,
-    metadata,
+    metadata: {
+      tags: conversationTags.tags,
+      ...metadata,
+    },
   };
 
   if (CONFIG.dumpIngestPayloads) {

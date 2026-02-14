@@ -32,8 +32,12 @@ export async function searchMemories(
 ): Promise<SearchMemoriesResult> {
   log("searchMemories: start", { containerTag });
   try {
-    const body = buildSearchBody(query, options);
-    body.containerTag = containerTag;
+    const tagFilter: MetadataFilter = { field: "tags", operator: "eq", value: [containerTag] };
+    const existingFilters = options?.metadataFilters ?? [];
+    const body = buildSearchBody(query, {
+      ...options,
+      metadataFilters: [tagFilter, ...existingFilters],
+    });
     const result = await post("/search", body);
     if (!isSearchResponse(result)) throw new Error("Invalid search response format");
     log("searchMemories: success", { count: result.results.length });
@@ -88,16 +92,19 @@ export async function searchGlobal(
   }
 }
 
-/** Search memories filtered by metadata fields and container tags. */
+/** Search memories filtered by metadata fields and optional tag scoping. */
 export async function searchByMetadata(
   options: MetadataSearchOptions,
 ): Promise<SearchMemoriesResult> {
-  log("searchByMetadata: start", { containerTags: options.containerTags });
+  log("searchByMetadata: start", { tags: options.tags });
   try {
+    const filters = [...options.metadataFilters];
+    if (options.tags && options.tags.length > 0) {
+      filters.unshift({ field: "tags", operator: "eq", value: options.tags });
+    }
     const result = await post("/search", {
       q: options.query,
-      containerTags: options.containerTags,
-      metadataFilters: options.metadataFilters,
+      metadataFilters: filters,
       limit: options.limit ?? CONFIG.maxMemories,
     });
     if (!isSearchResponse(result)) throw new Error("Invalid search response format");

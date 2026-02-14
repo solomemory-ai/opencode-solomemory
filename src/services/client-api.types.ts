@@ -73,13 +73,15 @@ export interface IngestPayload {
   readonly sourceId: string;
   readonly sourceType?: string;
   readonly content: Record<string, unknown>;
-  readonly containerTags: string[];
-  readonly metadata?: Record<string, string | number | boolean>;
+  readonly metadata: {
+    readonly tags?: string[];
+    readonly [key: string]: unknown;
+  };
 }
 
 export interface MetadataSearchOptions {
   readonly query: string;
-  readonly containerTags: string[];
+  readonly tags?: string[];
   readonly metadataFilters: MetadataFilter[];
   readonly limit?: number;
 }

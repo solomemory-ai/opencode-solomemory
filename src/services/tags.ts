@@ -184,7 +184,7 @@ export async function getTagMetadata(directory: string): Promise<TagMetadata> {
 // ============================================================================
 
 export interface ConversationTagsResult {
-  containerTags: string[];
+  tags: string[];
   metadata: TagMetadata & {
     sessionTag: string;
   };
@@ -207,10 +207,10 @@ export async function getConversationTags(
     tags.framework,
   ].filter((tag): tag is string => tag !== null);
 
-  const containerTags = [...optionalTags, ...tags.languages, tags.project, tags.os, tags.platform];
+  const allTags = [...optionalTags, ...tags.languages, tags.project, tags.os, tags.platform];
 
   return {
-    containerTags,
+    tags: allTags,
     metadata: { ...metadata, sessionTag },
   };
 }

@@ -31,23 +31,23 @@ Service modules + client subsystem. Client is the core. All services are statele
 
 ## API ENDPOINTS (client.ts)
 
-| Method                 | Endpoint                      | Body                                                                                    |
-| ---------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
-| `searchMemories()`     | POST /search                  | `{q, containerTag, limit?, threshold?}`                                                 |
-| `searchUserMemories()` | POST /search/user             | `{q, limit?, threshold?}`                                                               |
-| `searchGlobal()`       | POST /search                  | `{q, limit?, threshold?}`                                                               |
-| `searchByMetadata()`   | POST /search                  | `{q, containerTags, filters, limit?}`                                                   |
-| `getProfile()`         | GET /profile                  | `?q=` (optional query param)                                                            |
-| `listMemories()`       | POST /memories/list           | `{containerTag, limit}`                                                                 |
-| `listUserMemories()`   | POST /memories/user           | `{limit}`                                                                               |
-| `listGlobalMemories()` | POST /memories/list           | `{limit}` (no containerTag — global scope)                                              |
-| `addMemory()`          | POST /ingest (via `ingest()`) | `{sourceType: "memory", content: {text}, containerTags}`                                |
-| `deleteMemory()`       | DELETE /memories/:id          | — (via `apiRequest`, not `post`)                                                        |
-| `ingest()`             | POST /ingest                  | `{sourceId, sourceType?, content, containerTags, metadata?}`                            |
-| `getJobStatus()`       | GET /conversations/jobs/:id   | —                                                                                       |
-| `listProjects()`       | GET /projects                 | —                                                                                       |
-| `getTopics()`          | GET /memories/topics          | `?containerTag=` (optional query param)                                                 |
-| `reportError()`        | POST /errors                  | `{message, level, exceptionType, stack, pluginVersion, runtime, platform, tags, extra}` |
+| Method                 | Endpoint                      | Body / Params                                                                            |
+| ---------------------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `searchMemories()`     | POST /search                  | `{q, metadataFilters: [{field:"tags", operator:"eq", value:[tag]}], limit?, threshold?}` |
+| `searchUserMemories()` | POST /search/user             | `{q, limit?, threshold?}`                                                                |
+| `searchGlobal()`       | POST /search                  | `{q, limit?, threshold?}`                                                                |
+| `searchByMetadata()`   | POST /search                  | `{q, metadataFilters: [{field, operator, value}], limit?}`                               |
+| `getProfile()`         | GET /profile                  | `?q=` (optional query param)                                                             |
+| `listMemories()`       | POST /memories/list           | `{metadataFilters: [{field:"tags", operator:"eq", value:[tag]}], limit}`                 |
+| `listUserMemories()`   | POST /memories/user           | `{limit}`                                                                                |
+| `listGlobalMemories()` | POST /memories/list           | `{limit}` (no tag filter — global scope)                                                 |
+| `addMemory()`          | POST /ingest (via `ingest()`) | `{sourceType: "memory", content: {text}, metadata: {tags: [...]}}`                       |
+| `deleteMemory()`       | DELETE /memories/:id          | — (via `apiRequest`, not `post`)                                                         |
+| `ingest()`             | POST /ingest                  | `{sourceId, sourceType?, content, metadata: {tags: [...], ...}}`                         |
+| `getJobStatus()`       | GET /conversations/jobs/:id   | —                                                                                        |
+| `listProjects()`       | GET /projects                 | —                                                                                        |
+| `getTopics()`          | GET /memories/topics          | `?metadataFilters=[{...}]` (JSON-encoded filter array)                                   |
+| `reportError()`        | POST /errors                  | `{message, level, exceptionType, stack, pluginVersion, runtime, platform, tags, extra}`  |
 
 ## DEPENDENCY FLOW
 

@@ -101,7 +101,7 @@ opencode-solomemory/
 
 `solomemory` tool with modes: `search` (query memories), `profile` (show user profile), `list` (list memories by scope), `projects` (list known projects), `help` (usage info).
 
-Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search), `containerTag` (target project by tag).
+Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search), `containerTag` (target project by tag — resolved to `metadataFilters` before API call).
 
 ## MEMORY SCOPING
 
@@ -172,4 +172,4 @@ bun dev                  # tsc --watch
 - **Synthetic message filtering**: OpenCode injects `"Continue if you have next steps..."` user messages during auto-compaction — these are filtered out by `isSyntheticUserMessage` in `extractValidMessages`
 - **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
 - **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
-- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata includes both `language` (primary, backward compat) and `languages` (comma-separated list of all detected)
+- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata includes `languages` (comma-separated list of all detected)

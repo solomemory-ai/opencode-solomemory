@@ -61,7 +61,6 @@ export async function buildConversationMetadata(
     machine: conversationTags.metadata.machineHostname,
     os: getOS(),
     nodeVersion: getNodeVersion(),
-    language: orEmpty(languages[0] ?? null),
     languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")).join(","),
     packageManager: orEmpty(detectPackageManager(directory)),
   };

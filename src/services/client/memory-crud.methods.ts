@@ -40,8 +40,10 @@ export async function addMemory(
     sourceId: `memory_${randomUUID()}`,
     sourceType: "memory",
     content: { text: content },
-    containerTags: [containerTag],
-    metadata,
+    metadata: {
+      tags: [containerTag],
+      ...metadata,
+    },
   });
   if (!result.success) return { success: false as const, error: result.error };
   log("addMemory: success", { id: result.id });
@@ -94,7 +96,12 @@ export async function listMemories(
 ): Promise<ListMemoriesResult> {
   log("listMemories: start", { containerTag, limit });
   try {
-    const body = { containerTags: [containerTag], limit, order: "desc", sort: "createdAt" };
+    const body = {
+      metadataFilters: [{ field: "tags", operator: "eq", value: [containerTag] }],
+      limit,
+      order: "desc",
+      sort: "createdAt",
+    };
     const result = await post("/memories/list", body);
     if (!isListMemoriesResponse(result)) throw new Error("Invalid list response format");
     log("listMemories: success", { count: result.memories.length });
