@@ -4,7 +4,7 @@
 
 ## OVERVIEW
 
-OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile + relevant memories into context. Bun runtime, TypeScript strict.
+OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile + relevant memories + project topics into context. Bun runtime, TypeScript strict.
 
 ## STRUCTURE
 
@@ -12,7 +12,7 @@ OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile 
 opencode-solomemory/
 ├── src/
 │   ├── index.ts           # Entry: hooks registration, context injection, session mgmt
-│   ├── tools.ts           # Tool handler: solomemory tool modes (search, profile, list, help, projects)
+│   ├── tools.ts           # Tool handler: solomemory tool modes (search, profile, list, projects, help)
 │   ├── sync.ts            # Facade re-export — delegates to sync/ submodules
 │   ├── sync/
 │   │   ├── session-event.handlers.ts     # session.idle + session.compacted handlers
@@ -25,19 +25,20 @@ opencode-solomemory/
 │   ├── config.ts          # Config resolution via Proxy (env > jsonc > credentials > defaults)
 │   ├── cli.ts             # CLI entry (delegates to cli/)
 │   ├── cli/
-│   │   ├── index.ts       # CLI command router (install, login, logout, status, help)
-│   │   ├── install.ts     # Install command: config patching, slash commands
-│   │   └── templates.ts   # AGENTS.md + config templates for install
+│   │   ├── index.ts       # CLI command router (install, help)
+│   │   ├── install.ts     # Install command: config patching, slash commands, API key save
+│   │   └── templates.ts   # /solomemory-init and /solomemory-login slash command templates
 │   ├── types/
 │   │   └── index.ts       # Shared interfaces: Result<T,E>, Memory, ConversationMessage
-│   └── services/          # 11 service modules (see services/AGENTS.md)
+│   └── services/          # Service modules (see services/AGENTS.md)
 ├── docs/
 │   ├── CONFIG.md          # Full config reference
+│   ├── CONTRIBUTING.md    # Contributing guide
 │   └── RELEASE.md         # Release process
 ├── scripts/
 │   └── release.sh         # Version bump + publish (patch|minor|major)
 └── .github/workflows/
-    └── release.yml        # npm publish on v* tags with provenance
+    └── publish.yml        # Dual-track: dev builds on v1.0 push, releases on v* tags
 ```
 
 ## WHERE TO LOOK
@@ -58,34 +59,42 @@ opencode-solomemory/
 
 ## CODE MAP
 
-| Symbol                   | Type           | Location                                  | Role                                                            |
-| ------------------------ | -------------- | ----------------------------------------- | --------------------------------------------------------------- |
-| `SolomemoryPlugin`       | const (Plugin) | `src/index.ts`                            | Default export, plugin entry                                    |
-| `executeTool`            | fn             | `src/tools.ts`                            | Tool mode dispatcher (search, profile, list, help)              |
-| `handleSessionIdle`      | fn             | `src/sync/session-event.handlers.ts`      | Exchange-scoped conversation sync on idle (last user msg → end) |
-| `handleSessionCompacted` | fn             | `src/sync/session-event.handlers.ts`      | Ingest unsynced messages on compaction (skips summary)          |
-| `sessionSyncState`       | Map            | `src/sync/sync-state.store.ts`            | Incremental sync tracking per session                           |
-| `ingestConversation`     | fn             | `src/sync/conversation-ingest.service.ts` | Build payload, dump if enabled, call API                        |
-| `dumpIngestPayload`      | fn             | `src/services/payload-dump.ts`            | Write payload JSON to disk (fire-and-forget)                    |
-| `subagentSessions`       | Set            | `src/state.ts`                            | Tracks subagent session IDs (skip sync)                         |
-| `solomemoryClient`       | singleton      | `src/services/client.ts`                  | All API communication                                           |
-| `CONFIG`                 | Proxy          | `src/config.ts`                           | Lazy-init config, accessed everywhere                           |
-| `getTags`                | async fn       | `src/services/tags.ts`                    | Container tag generation (project, repo, branch, etc.)          |
-| `formatContextForPrompt` | fn             | `src/services/context.ts`                 | Memory → system prompt injection                                |
-| `injectedSessions`       | Set            | `src/index.ts`                            | Prevents double-injection per session                           |
+| Symbol                      | Type           | Location                                   | Role                                                               |
+| --------------------------- | -------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                       |
+| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)       |
+| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Exchange-scoped conversation sync on idle (last user msg → end)    |
+| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Ingest unsynced messages on compaction (skips summary)             |
+| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                              |
+| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                           |
+| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                   |
+| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Exchange-scoped message extraction + validation                    |
+| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                       |
+| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                            |
+| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                              |
+| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                              |
+| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)             |
+| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                       |
+| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                            |
+| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection |
+| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                              |
+| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection        |
+| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                    |
 
 ## HOOKS
 
 | Hook                      | Trigger                        | Action                                                                                                            |
 | ------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project memories → inject as synthetic Part                              |
+| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project topics → inject as synthetic Part with CTA                       |
 | `event:session.idle`      | Session idle                   | Exchange-scoped sync: extract last user message → end, build metadata, call `ingest` with sourceType=conversation |
 | `event:session.compacted` | Session compacted              | Ingest unsynced messages since last sync, skip compaction summary (`summary === true`), update sync state         |
-| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` Maps                                                             |
+| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` + `subagentSessions`                                             |
 
 ## TOOL
 
-`solomemory` tool with modes: `search` (query memories), `profile` (show user profile), `list` (list memories by scope), `help` (usage info).
+`solomemory` tool with modes: `search` (query memories), `profile` (show user profile), `list` (list memories by scope), `projects` (list known projects), `help` (usage info).
+
+Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search), `containerTag` (target project by tag).
 
 ## MEMORY SCOPING
 
@@ -108,13 +117,13 @@ opencode-solomemory/
 
 `SOLOMEMORY_*` env vars > `~/.config/opencode/solomemory.jsonc` > `~/.config/opencode/credentials.json` > defaults
 
-Key defaults: `similarityThreshold=0.6`, `maxMemories=5`, `maxProjectMemories=10`, `maxProfileItems=5`, `dumpIngestPayloads=false`, `dumpDir=""` (falls back to `~/.solomemory-dumps/`)
+Key defaults: `maxMemories=5`, `maxProjectMemories=10`, `maxProfileItems=5`, `injectProfile=true`, `platformIdentifier="opencode"`, `autoSyncConversations=true`, `dumpIngestPayloads=false`, `dumpDir=""` (falls back to `~/.solomemory-dumps/`)
 
 ## CONVENTIONS
 
 - TypeScript strict + `noUncheckedIndexedAccess` + `verbatimModuleSyntax`
 - Bun runtime (not Node), ESNext target, bundler module resolution
-- ESLint + Prettier + husky pre-commit hooks (strict: no magic numbers, complexity ≤ 10)
+- ESLint strict: max-lines:300, max-lines-per-function:50, max-params:3, max-statements:15, complexity:10, max-depth:3
 - Discriminated union results from API: `{ success: true, ... } | { success: false, error }`
 - Privacy: `<private>` tags redacted before sending to API
 - Auth: Bearer token, credentials at `~/.solomemory-opencode/credentials.json` (0o600)
@@ -144,6 +153,9 @@ bun dev                  # tsc --watch
 ## NOTES
 
 - **No automated tests** — no jest/vitest, manual QA only
+- CLI has only `install` and `help` commands (no login/logout/status)
 - CLI install command modifies opencode config AND creates slash commands (`/solomemory-init`, `/solomemory-login`)
 - Release: `scripts/release.sh {patch|minor|major}` → git tag → GitHub Actions publishes to npm
+- CI dual-track: dev builds on push to `v1.0` branch, releases on `v*` tags
 - JSONC parser is hand-rolled state machine (handles comments, trailing commas, escaped quotes)
+- Context injection includes CTA telling the agent about the `solomemory` tool
