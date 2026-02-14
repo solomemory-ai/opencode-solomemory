@@ -38,8 +38,12 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
 
   const { allMessages, syncState } = await fetchSessionMessages(ctx, sessionID);
 
-  const extractFrom = syncState.compactionAnchorIndex ?? syncState.lastSyncedMessageIndex;
-  const rawMessages = extractValidMessages(allMessages, extractFrom, directory);
+  const anchor = syncState.compactionAnchorIndex ?? syncState.lastSyncedMessageIndex;
+  const rawMessages = extractValidMessages(
+    allMessages,
+    anchor >= allMessages.length ? -1 : anchor,
+    directory,
+  );
 
   syncState.compactionAnchorIndex = undefined;
 
