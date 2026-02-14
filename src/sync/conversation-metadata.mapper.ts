@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from "../config.js";
-import { detectFrameworks, detectLanguages, detectPackageManager } from "../services/detectors.js";
+import { detectFrameworks, detectLanguages, detectPackageManagers } from "../services/detectors.js";
 import {
   getGitAuthor,
   getGitBranch,
@@ -76,7 +76,7 @@ export async function buildConversationMetadata(
     os: getOS(),
     nodeVersion: getNodeVersion(),
     languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")),
-    packageManager: detectPackageManager(directory),
+    packageManagers: detectPackageManagers(directory),
     frameworks,
   });
 }

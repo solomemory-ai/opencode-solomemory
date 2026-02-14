@@ -162,20 +162,27 @@ const MANIFEST_MANAGERS: readonly (readonly [string, string])[] = [
   ["vcpkg.json", "vcpkg"],
 ];
 
-export function detectPackageManager(directory: string): string | null {
+/**
+ * Detect all package managers used in a project directory.
+ * Checks lockfiles first (high confidence), then manifests (lower confidence).
+ * Returns deduplicated list preserving detection order.
+ */
+export function detectPackageManagers(directory: string): string[] {
+  const found = new Set<string>();
+
   for (const [file, pm] of LOCKFILE_MANAGERS) {
     if (existsSync(path.join(directory, file))) {
-      return pm;
+      found.add(pm);
     }
   }
 
   for (const [file, pm] of MANIFEST_MANAGERS) {
     if (existsSync(path.join(directory, file))) {
-      return pm;
+      found.add(pm);
     }
   }
 
-  return null;
+  return [...found];
 }
 
 // ============================================================================

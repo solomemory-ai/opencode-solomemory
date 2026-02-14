@@ -4,7 +4,7 @@ import { hostname, platform } from "node:os";
 import path from "node:path";
 
 import { CONFIG } from "../config.js";
-import { detectFrameworks, detectLanguages, detectPackageManager } from "./detectors.js";
+import { detectFrameworks, detectLanguages, detectPackageManagers } from "./detectors.js";
 import { getGitBranch, getGitRemoteOrigin, getGitRepoRoot, parseRepoOwnerAndName } from "./git.js";
 import { getWorkspaceInfo } from "./workspace.js";
 
@@ -102,10 +102,8 @@ export function getOrgTag(directory: string): string | null {
   return `org_${owner.toLowerCase()}`;
 }
 
-export function getPackageManagerTag(directory: string): string | null {
-  const pm = detectPackageManager(directory);
-  if (!pm) return null;
-  return `pkgmgr_${pm}`;
+export function getPackageManagerTags(directory: string): string[] {
+  return detectPackageManagers(directory).map((pm) => `pkgmgr_${pm}`);
 }
 
 export function getOsTag(): string {
@@ -134,7 +132,7 @@ export interface Tags {
   platform: string;
   languages: string[];
   org: string | null;
-  packageManager: string | null;
+  packageManagers: string[];
   os: string;
   frameworks: string[];
 }
@@ -154,7 +152,7 @@ export async function getTags(directory: string): Promise<Tags> {
     platform: getPlatformTag(),
     languages,
     org: getOrgTag(directory),
-    packageManager: getPackageManagerTag(directory),
+    packageManagers: getPackageManagerTags(directory),
     os: getOsTag(),
     frameworks,
   };
