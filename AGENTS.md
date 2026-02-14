@@ -59,27 +59,32 @@ opencode-solomemory/
 
 ## CODE MAP
 
-| Symbol                      | Type           | Location                                   | Role                                                                            |
-| --------------------------- | -------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                                    |
-| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)                    |
-| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs |
-| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)               |
-| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                           |
-| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                                        |
-| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                                |
-| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic               |
-| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                                    |
-| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                         |
-| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                           |
-| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                           |
-| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)                          |
-| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                                    |
-| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                                         |
-| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection              |
-| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                           |
-| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                     |
-| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                                 |
+| Symbol                      | Type           | Location                                   | Role                                                                                                      |
+| --------------------------- | -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                                                              |
+| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)                                              |
+| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs                           |
+| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)                                         |
+| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                                                     |
+| `ingestConversation`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, dump if enabled, call API                                                                  |
+| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                                                          |
+| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic, emits thinking + tool entries          |
+| `findLastUserMessageIndex`  | fn             | `src/sync/session-message.validation.ts`   | Scans backward for last user message; used to initialize sync state on session reload                     |
+| `extractContentFromParts`   | fn             | `src/services/messages.ts`                 | Extracts text content from message parts (text-only, excludes reasoning)                                  |
+| `extractReasoningText`      | fn             | `src/services/messages.ts`                 | Extracts reasoning/thinking text from `ReasoningPart` entries (separate from text content)                |
+| `extractToolEntries`        | fn             | `src/services/messages.ts`                 | Extracts compact tool entries from completed `ToolPart`s — `{ role: "tool", content: "<tool>: <title>" }` |
+| `initSyncState`             | fn             | `src/sync/sync-state.store.ts`             | Creates sync state for session; accepts optional `initialIndex` for session reload                        |
+| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                                                              |
+| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                                                   |
+| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                                                     |
+| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                                                     |
+| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)                                                    |
+| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                                                              |
+| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                                                                   |
+| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection                                        |
+| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                                                     |
+| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                                               |
+| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                                                           |
 
 ## HOOKS
 
@@ -159,3 +164,9 @@ bun dev                  # tsc --watch
 - CI dual-track: dev builds on push to `v1.0` branch, releases on `v*` tags
 - JSONC parser is hand-rolled state machine (handles comments, trailing commas, escaped quotes)
 - Context injection includes CTA telling the agent about the `solomemory` tool
+- **Thinking blocks**: Assistant reasoning parts (`type: "reasoning"`) are extracted as separate `{ role: "thinking" }` message entries, distinct from text content. `extractContentFromParts` handles text-only, `extractReasoningText` handles reasoning-only
+- **Session reload**: When plugin starts on an existing session (in-memory state lost), `findLastUserMessageIndex` scans backward to find the last user message and initializes sync state from there — prevents replaying entire session history
+- **Compaction deferral**: `session.compacted` sets a `compactionAnchorIndex` on sync state instead of ingesting; the next `session.idle` uses the anchor as extraction start point
+- **Synthetic message filtering**: OpenCode injects `"Continue if you have next steps..."` user messages during auto-compaction — these are filtered out by `isSyntheticUserMessage` in `extractValidMessages`
+- **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
+- **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing

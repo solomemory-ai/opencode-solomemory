@@ -1,5 +1,7 @@
 import type { Part } from "@opencode-ai/sdk";
 
+import type { ConversationMessage } from "../types/index.js";
+
 export interface MessageInfo {
   id: string;
   role: string;
@@ -38,4 +40,18 @@ export function extractReasoningText(parts: Part[]): string {
     )
     .map((p) => p.text)
     .join("\n");
+}
+
+function formatToolContent(tool: string, title: string): string {
+  return `${tool}: ${title}`;
+}
+
+export function extractToolEntries(parts: Part[]): ConversationMessage[] {
+  const results: ConversationMessage[] = [];
+  for (const part of parts) {
+    if (part.type === "tool" && part.state.status === "completed") {
+      results.push({ role: "tool", content: formatToolContent(part.tool, part.state.title) });
+    }
+  }
+  return results;
 }

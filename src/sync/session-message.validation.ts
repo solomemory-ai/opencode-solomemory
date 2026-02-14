@@ -6,6 +6,7 @@
 import {
   extractContentFromParts,
   extractReasoningText,
+  extractToolEntries,
   type SessionMessage,
 } from "../services/messages.js";
 import type { ConversationMessage } from "../types/index.js";
@@ -65,6 +66,7 @@ export function extractValidMessages(
       if (content.trim() && !isNoiseContent(content)) {
         results.push({ role: msg.info.role, content });
       }
+      results.push(...extractToolEntries(msg.parts));
       return results;
     });
 }
