@@ -69,7 +69,7 @@ opencode-solomemory/
 | `fetchSessionMessages`      | fn             | `src/sync/conversation-ingest.service.ts`  | Fetch session messages + init sync state on reload                                                        |
 | `handleNoMessages`          | fn             | `src/sync/conversation-ingest.service.ts`  | Update sync state when no valid messages to sync                                                          |
 | `ingestAndLogResult`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, optional dump, call API, log result                                                        |
-| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Extract metadata object from session info + tags                                                          |
+| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Assembles flat metadata record with all named fields (no tags array) via direct helper calls              |
 | `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic, emits thinking + tool entries          |
 | `findLastUserMessageIndex`  | fn             | `src/sync/session-message.validation.ts`   | Scans backward for last user message; used to initialize sync state on session reload                     |
 | `extractContentFromParts`   | fn             | `src/services/messages.ts`                 | Extracts text content from message parts (text-only, excludes reasoning)                                  |
@@ -80,9 +80,7 @@ opencode-solomemory/
 | `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                                                   |
 | `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                                                     |
 | `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                                                     |
-| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation (project, repo, branch, etc.)                                                    |
-| `getTagMetadata`            | async fn       | `src/services/tags.ts`                     | Full metadata for ingest (tags + raw values)                                                              |
-| `getConversationTags`       | async fn       | `src/services/tags.ts`                     | Subset of tags for conversation context                                                                   |
+| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation for search/list routing (project, repo, branch, etc.)                            |
 | `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection                                        |
 | `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                                                     |
 | `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                                               |
@@ -172,4 +170,5 @@ bun dev                  # tsc --watch
 - **Synthetic message filtering**: OpenCode injects `"Continue if you have next steps..."` user messages during auto-compaction — these are filtered out by `isSyntheticUserMessage` in `extractValidMessages`
 - **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
 - **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
-- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata includes `languages` (comma-separated list of all detected)
+- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata `languages` is a `string[]` (e.g. `["typescript", "javascript"]`)
+- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, framework, etc.) — no `tags` array. Server derives routing tags from these named fields. Tags (`getTags`) are still used client-side for search/list scoping only
