@@ -5,7 +5,6 @@
 
 import type { PluginInput } from "@opencode-ai/plugin";
 
-import type { ConversationTagsResult } from "../services/tags.js";
 import type { Tags } from "../services/tags.js";
 import type { ConversationMessage } from "../types/index.js";
 
@@ -32,8 +31,7 @@ export interface MetadataInput {
 export interface IngestParams {
   syncState: ConversationSyncState;
   rawMessages: ConversationMessage[];
-  conversationTags: ConversationTagsResult;
-  metadata: Record<string, string | number | boolean>;
+  metadata: Record<string, string | number | boolean | string[]>;
   sessionID: string;
   allMessages: unknown[];
 }

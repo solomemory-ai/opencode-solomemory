@@ -73,10 +73,7 @@ export interface IngestPayload {
   readonly sourceId: string;
   readonly sourceType?: string;
   readonly content: Record<string, unknown>;
-  readonly metadata: {
-    readonly tags?: string[];
-    readonly [key: string]: unknown;
-  };
+  readonly metadata: Record<string, unknown>;
 }
 
 export interface MetadataSearchOptions {

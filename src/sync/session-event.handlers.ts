@@ -4,7 +4,6 @@
  */
 
 import { log } from "../services/logger.js";
-import { getConversationTags } from "../services/tags.js";
 import { subagentSessions } from "../state.js";
 import {
   fetchSessionMessages,
@@ -52,9 +51,8 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
     return;
   }
 
-  const [sessionInfo, conversationTags, metadata] = await Promise.all([
+  const [sessionInfo, metadata] = await Promise.all([
     ctx.client.session.get({ path: { id: sessionID } }),
-    getConversationTags(tags, sessionID, directory),
     buildConversationMetadata({ sessionID, directory, tags }, rawMessages.length),
   ]);
 
@@ -65,7 +63,6 @@ export async function handleSessionIdle(input: SessionIdleInput): Promise<void> 
   await ingestAndLogResult({
     syncState,
     rawMessages,
-    conversationTags,
     metadata,
     sessionID,
     allMessages,

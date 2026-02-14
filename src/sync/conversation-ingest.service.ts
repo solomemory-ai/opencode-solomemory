@@ -43,16 +43,13 @@ export function handleNoMessages(
 }
 
 export async function ingestAndLogResult(params: IngestParams): Promise<void> {
-  const { syncState, rawMessages, conversationTags, metadata, sessionID, allMessages } = params;
+  const { syncState, rawMessages, metadata, sessionID, allMessages } = params;
 
   const payload: IngestPayload = {
     sourceId: syncState.conversationId,
     sourceType: "conversation",
     content: { messages: rawMessages },
-    metadata: {
-      tags: conversationTags.tags,
-      ...metadata,
-    },
+    metadata,
   };
 
   if (CONFIG.dumpIngestPayloads) {

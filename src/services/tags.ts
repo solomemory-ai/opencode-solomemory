@@ -113,10 +113,6 @@ export function getPlatformTag(): string {
   return `plat_${CONFIG.platformIdentifier}`;
 }
 
-export function getSessionTag(sessionId: string): string {
-  return `session_${sessionId}`;
-}
-
 // ============================================================================
 // MAIN TAGS INTERFACE
 // ============================================================================
@@ -133,14 +129,6 @@ export interface Tags {
   packageManager: string | null;
   os: string;
   framework: string | null;
-}
-
-export interface TagMetadata extends Tags {
-  gitRemoteOrigin: string | null;
-  gitBranch: string | null;
-  workspaceName: string | null;
-  workspaceType: string | null;
-  machineHostname: string;
 }
 
 export async function getTags(directory: string): Promise<Tags> {
@@ -161,56 +149,5 @@ export async function getTags(directory: string): Promise<Tags> {
     packageManager: getPackageManagerTag(directory),
     os: getOsTag(),
     framework,
-  };
-}
-
-export async function getTagMetadata(directory: string): Promise<TagMetadata> {
-  const tags = await getTags(directory);
-  const gitRoot = getGitRepoRoot(directory);
-  const workspace = getWorkspaceInfo(directory, gitRoot);
-
-  return {
-    ...tags,
-    gitRemoteOrigin: getGitRemoteOrigin(directory),
-    gitBranch: getGitBranch(directory),
-    workspaceName: workspace?.name ?? null,
-    workspaceType: workspace?.type ?? null,
-    machineHostname: getMachineId(),
-  };
-}
-
-// ============================================================================
-// CONVERSATION TAGS
-// ============================================================================
-
-export interface ConversationTagsResult {
-  tags: string[];
-  metadata: TagMetadata & {
-    sessionTag: string;
-  };
-}
-
-export async function getConversationTags(
-  tags: Tags,
-  sessionId: string,
-  directory: string,
-): Promise<ConversationTagsResult> {
-  const sessionTag = getSessionTag(sessionId);
-  const metadata = await getTagMetadata(directory);
-
-  const optionalTags = [
-    tags.repository,
-    tags.workspace,
-    tags.branch,
-    tags.org,
-    tags.packageManager,
-    tags.framework,
-  ].filter((tag): tag is string => tag !== null);
-
-  const allTags = [...optionalTags, ...tags.languages, tags.project, tags.os, tags.platform];
-
-  return {
-    tags: allTags,
-    metadata: { ...metadata, sessionTag },
   };
 }
