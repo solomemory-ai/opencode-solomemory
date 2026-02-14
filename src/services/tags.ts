@@ -4,7 +4,7 @@ import { hostname, platform } from "node:os";
 import path from "node:path";
 
 import { CONFIG } from "../config.js";
-import { detectFramework, detectLanguages, detectPackageManager } from "./detectors.js";
+import { detectFrameworks, detectLanguages, detectPackageManager } from "./detectors.js";
 import { getGitBranch, getGitRemoteOrigin, getGitRepoRoot, parseRepoOwnerAndName } from "./git.js";
 import { getWorkspaceInfo } from "./workspace.js";
 
@@ -103,10 +103,9 @@ export function getOsTag(): string {
   return `os_${getOS()}`;
 }
 
-export async function getFrameworkTag(directory: string): Promise<string | null> {
-  const fw = await detectFramework(directory);
-  if (!fw) return null;
-  return `fw_${fw}`;
+export async function getFrameworkTags(directory: string): Promise<string[]> {
+  const fws = await detectFrameworks(directory);
+  return fws.map((fw) => `fw_${fw}`);
 }
 
 export function getPlatformTag(): string {
@@ -128,13 +127,13 @@ export interface Tags {
   org: string | null;
   packageManager: string | null;
   os: string;
-  framework: string | null;
+  frameworks: string[];
 }
 
 export async function getTags(directory: string): Promise<Tags> {
-  const [languages, framework] = await Promise.all([
+  const [languages, frameworks] = await Promise.all([
     getLanguageTags(directory),
-    getFrameworkTag(directory),
+    getFrameworkTags(directory),
   ]);
 
   return {
@@ -148,6 +147,6 @@ export async function getTags(directory: string): Promise<Tags> {
     org: getOrgTag(directory),
     packageManager: getPackageManagerTag(directory),
     os: getOsTag(),
-    framework,
+    frameworks,
   };
 }

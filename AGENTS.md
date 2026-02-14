@@ -122,19 +122,19 @@ Query methods (`searchMemories`, `listMemories`, `getTopics`) use `ProjectScope`
 
 Ingest sends named metadata fields. Server derives routing tags from these. `tags.ts` generators are used only for ingest metadata enrichment (not query filtering).
 
-| Field       | Source                                                                     | Example metadata value         |
-| ----------- | -------------------------------------------------------------------------- | ------------------------------ |
-| Platform    | Config `platformIdentifier`                                                | `opencode`                     |
-| Repository  | Git remote URL (raw, not hashed)                                           | `https://github.com/org/repo`  |
-| Directory   | `process.cwd()`                                                            | `/home/user/my-project`        |
-| Branch      | Git branch name                                                            | `feat/auth`                    |
-| Languages   | `linguist-js` detection + heuristic fallback (multi-value, all detected)   | `["typescript", "javascript"]` |
-| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `nextjs`                       |
-| Org         | Git remote owner (lowercase)                                               | `mycompany`                    |
-| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `bun`                          |
-| OS          | `os.platform()`                                                            | `linux`                        |
-| Machine     | Hostname hash (sha256, full 64 chars)                                      | `<sha256>`                     |
-| Workspace   | Monorepo workspace name (sanitized)                                        | `api`                          |
+| Field       | Source                                                                         | Example metadata value         |
+| ----------- | ------------------------------------------------------------------------------ | ------------------------------ |
+| Platform    | Config `platformIdentifier`                                                    | `opencode`                     |
+| Repository  | Git remote URL (raw, not hashed)                                               | `https://github.com/org/repo`  |
+| Directory   | `process.cwd()`                                                                | `/home/user/my-project`        |
+| Branch      | Git branch name                                                                | `feat/auth`                    |
+| Languages   | `linguist-js` detection + heuristic fallback (multi-value, all detected)       | `["typescript", "javascript"]` |
+| Frameworks  | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb (multi-value, all detected) | `["nextjs", "vite"]`           |
+| Org         | Git remote owner (lowercase)                                                   | `mycompany`                    |
+| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems)     | `bun`                          |
+| OS          | `os.platform()`                                                                | `linux`                        |
+| Machine     | Hostname hash (sha256, full 64 chars)                                          | `<sha256>`                     |
+| Workspace   | Monorepo workspace name (sanitized)                                            | `api`                          |
 
 ## CONFIG RESOLUTION ORDER
 
@@ -189,5 +189,6 @@ bun dev                  # tsc --watch
 - **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
 - **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
 - **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata `languages` is a `string[]` (e.g. `["typescript", "javascript"]`)
-- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, framework, etc.) — no `tags` array. Server derives routing tags from these named fields
+- **Multi-framework detection**: `detectFrameworks()` uses `@vercel/fs-detectors` plural API to return all matched frameworks + Django/Laravel fallback. `Tags.frameworks` is `string[]`, emitting multiple `fw_*` container tags. Ingest metadata `frameworks` is a `string[]` (e.g. `["nextjs", "vite"]`)
+- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, frameworks, etc.) — no `tags` array. Server derives routing tags from these named fields
 - **Query uses named metadata fields**: Query methods (`searchMemories`, `listMemories`, `getTopics`) filter by `ProjectScope` — `{ field: "repository" | "directory", value: "<raw value>" }`. Tags (`getTags`) are used only for ingest metadata enrichment, not for query filtering

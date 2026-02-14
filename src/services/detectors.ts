@@ -4,12 +4,10 @@ import path from "node:path";
 import type { Framework } from "@vercel/frameworks";
 import { frameworks } from "@vercel/frameworks";
 import {
-  detectFramework as vercelDetectFramework,
+  detectFrameworks as vercelDetectFrameworks,
   LocalFileSystemDetector,
 } from "@vercel/fs-detectors";
 import linguist from "linguist-js";
-
-type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> };
 
 // ============================================================================
 // LANGUAGE DETECTION
@@ -185,28 +183,30 @@ export function detectPackageManager(directory: string): string | null {
 // ============================================================================
 
 /**
- * Detect the web framework used in a project directory.
+ * Detect all web frameworks used in a project directory.
  * Uses @vercel/fs-detectors (68 frameworks, production-tested by Vercel).
  * Falls back to config-file heuristics for frameworks Vercel doesn't cover
  * (Django via manage.py, Laravel via artisan).
  */
-export async function detectFramework(directory: string): Promise<string | null> {
+export async function detectFrameworks(directory: string): Promise<string[]> {
   try {
     const fs = new LocalFileSystemDetector(directory);
     // @vercel/frameworks exports deeply readonly tuples but @vercel/fs-detectors
-    // expects mutable arrays — upstream type mismatch between Vercel's own packages
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const mutableFrameworks = frameworks as unknown as DeepMutable<Framework>[];
-    const slug = await vercelDetectFramework({
+    // expects Framework[] — upstream type mismatch between Vercel's own packages
+    const matched = await vercelDetectFrameworks({
       fs,
-      frameworkList: mutableFrameworks,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      frameworkList: frameworks as unknown as Framework[],
     });
-    if (slug) return slug;
+    if (matched.length > 0) {
+      return matched.map((fw) => fw.slug).filter((s): s is string => s !== null);
+    }
   } catch {
     // Vercel detector may fail on some directories — fall through to heuristic
   }
 
-  return detectFrameworkFallback(directory);
+  const fallback = detectFrameworkFallback(directory);
+  return fallback ? [fallback] : [];
 }
 
 /** Heuristic fallback for frameworks not covered by @vercel/fs-detectors */

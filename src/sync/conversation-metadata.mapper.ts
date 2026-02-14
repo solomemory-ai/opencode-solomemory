@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from "../config.js";
-import { detectFramework, detectLanguages, detectPackageManager } from "../services/detectors.js";
+import { detectFrameworks, detectLanguages, detectPackageManager } from "../services/detectors.js";
 import {
   getGitAuthor,
   getGitBranch,
@@ -46,9 +46,9 @@ export async function buildConversationMetadata(
   const gitRoot = getGitRepoRoot(directory);
   const workspace = getWorkspaceInfo(directory, gitRoot);
 
-  const [languages, framework] = await Promise.all([
+  const [languages, frameworks] = await Promise.all([
     detectLanguages(directory),
-    detectFramework(directory),
+    detectFrameworks(directory),
   ]);
 
   const gitRemote = gitRoot ? getGitRemoteOrigin(directory) : null;
@@ -77,6 +77,6 @@ export async function buildConversationMetadata(
     nodeVersion: getNodeVersion(),
     languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")),
     packageManager: detectPackageManager(directory),
-    framework,
+    frameworks,
   });
 }
