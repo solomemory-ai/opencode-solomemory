@@ -5,10 +5,12 @@
 
 import type { PluginInput } from "@opencode-ai/plugin";
 
+import { CONFIG } from "../config.js";
 import { solomemoryClient } from "../services/client.js";
 import type { IngestPayload } from "../services/client-types.js";
 import { reportError } from "../services/error-reporter.js";
 import { log } from "../services/logger.js";
+import { dumpIngestPayload } from "../services/payload-dump.js";
 import type { ConversationSyncState, IngestParams } from "./sync.types.js";
 import { initSyncState, sessionSyncState } from "./sync-state.store.js";
 
@@ -43,6 +45,10 @@ export async function ingestAndLogResult(params: IngestParams): Promise<void> {
     containerTags: conversationTags.containerTags,
     metadata,
   };
+
+  if (CONFIG.dumpIngestPayloads) {
+    await dumpIngestPayload(payload);
+  }
 
   const result = await solomemoryClient.ingest(payload);
 

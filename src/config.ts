@@ -23,6 +23,7 @@ interface SolomemoryConfig {
   platformIdentifier?: string;
   autoSyncConversations?: boolean;
   filterPrompt?: string;
+  dumpIngestPayloads?: boolean;
 }
 
 const DEFAULTS = {
@@ -34,6 +35,7 @@ const DEFAULTS = {
   autoSyncConversations: true,
   filterPrompt:
     "You are a stateful coding agent. Remember all the information, including but not limited to user's coding preferences, tech stack, behaviours, workflows, and any other relevant details.",
+  dumpIngestPayloads: false,
 } as const;
 
 function isSolomemoryConfig(data: unknown): data is SolomemoryConfig {
@@ -85,6 +87,9 @@ function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
     platformIdentifier: fileConfig.platformIdentifier ?? DEFAULTS.platformIdentifier,
     autoSyncConversations: fileConfig.autoSyncConversations ?? DEFAULTS.autoSyncConversations,
     filterPrompt: fileConfig.filterPrompt ?? DEFAULTS.filterPrompt,
+    dumpIngestPayloads:
+      process.env.SOLOMEMORY_DUMP_INGEST === "true" ||
+      (fileConfig.dumpIngestPayloads ?? DEFAULTS.dumpIngestPayloads),
   };
 }
 
@@ -120,6 +125,7 @@ export interface RuntimeConfig {
   readonly platformIdentifier: string;
   readonly autoSyncConversations: boolean;
   readonly filterPrompt: string;
+  readonly dumpIngestPayloads: boolean;
 }
 
 export function getConfig(): RuntimeConfig {
@@ -139,6 +145,7 @@ function isRuntimeConfigKey(prop: string): prop is keyof RuntimeConfig {
     "platformIdentifier",
     "autoSyncConversations",
     "filterPrompt",
+    "dumpIngestPayloads",
   ];
   return validKeys.includes(prop);
 }
@@ -160,6 +167,7 @@ const emptyConfig: RuntimeConfig = {
   platformIdentifier: "",
   autoSyncConversations: false,
   filterPrompt: "",
+  dumpIngestPayloads: false,
 };
 
 export const CONFIG: RuntimeConfig = new Proxy<RuntimeConfig>(emptyConfig, configHandler);
