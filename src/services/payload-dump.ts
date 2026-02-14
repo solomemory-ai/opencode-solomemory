@@ -11,18 +11,28 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
+import { CONFIG } from "../config.js";
 import type { IngestPayload } from "../services/client-types.js";
 import { log } from "../services/logger.js";
 
-const DUMP_DIR = path.join(homedir(), ".solomemory-dumps");
+const DEFAULT_DUMP_DIR = path.join(homedir(), ".solomemory-dumps");
 
-let dirEnsured = false;
+function resolveDumpDir(): string {
+  const configured = CONFIG.dumpDir;
+  if (!configured) return DEFAULT_DUMP_DIR;
+  if (configured.startsWith("~/")) {
+    return path.join(homedir(), configured.slice(2));
+  }
+  return path.resolve(configured);
+}
 
-async function ensureDumpDir(): Promise<void> {
-  if (dirEnsured) return;
+let ensuredDir = "";
+
+async function ensureDumpDir(dir: string): Promise<void> {
+  if (ensuredDir === dir) return;
   try {
-    await mkdir(DUMP_DIR, { recursive: true });
-    dirEnsured = true;
+    await mkdir(dir, { recursive: true });
+    ensuredDir = dir;
   } catch {
     // If we can't create the dir, we'll fail on write — logged there
   }
@@ -43,9 +53,10 @@ function buildFilename(payload: IngestPayload): string {
 
 export async function dumpIngestPayload(payload: IngestPayload): Promise<void> {
   try {
-    await ensureDumpDir();
+    const dumpDir = resolveDumpDir();
+    await ensureDumpDir(dumpDir);
     const filename = buildFilename(payload);
-    const filePath = path.join(DUMP_DIR, filename);
+    const filePath = path.join(dumpDir, filename);
     const content = JSON.stringify(payload, undefined, 2);
     await writeFile(filePath, content, "utf8");
     log("payload-dump: written", { path: filePath });

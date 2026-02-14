@@ -24,6 +24,7 @@ interface SolomemoryConfig {
   autoSyncConversations?: boolean;
   filterPrompt?: string;
   dumpIngestPayloads?: boolean;
+  dumpDir?: string;
 }
 
 const DEFAULTS = {
@@ -36,6 +37,7 @@ const DEFAULTS = {
   filterPrompt:
     "You are a stateful coding agent. Remember all the information, including but not limited to user's coding preferences, tech stack, behaviours, workflows, and any other relevant details.",
   dumpIngestPayloads: false,
+  dumpDir: "",
 } as const;
 
 function isSolomemoryConfig(data: unknown): data is SolomemoryConfig {
@@ -78,6 +80,17 @@ function resolveApiUrl(fileConfig: SolomemoryConfig): string {
   return process.env.SOLOMEMORY_API_URL ?? fileConfig.apiUrl ?? DEFAULT_API_URL;
 }
 
+function resolveDumpConfig(
+  fileConfig: SolomemoryConfig,
+): Pick<RuntimeConfig, "dumpDir" | "dumpIngestPayloads"> {
+  return {
+    dumpIngestPayloads:
+      process.env.SOLOMEMORY_DUMP_INGEST === "true" ||
+      (fileConfig.dumpIngestPayloads ?? DEFAULTS.dumpIngestPayloads),
+    dumpDir: process.env.SOLOMEMORY_DUMP_DIR ?? fileConfig.dumpDir ?? DEFAULTS.dumpDir,
+  };
+}
+
 function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
   return {
     maxMemories: fileConfig.maxMemories ?? DEFAULTS.maxMemories,
@@ -87,9 +100,7 @@ function buildRuntimeConfig(fileConfig: SolomemoryConfig): RuntimeConfig {
     platformIdentifier: fileConfig.platformIdentifier ?? DEFAULTS.platformIdentifier,
     autoSyncConversations: fileConfig.autoSyncConversations ?? DEFAULTS.autoSyncConversations,
     filterPrompt: fileConfig.filterPrompt ?? DEFAULTS.filterPrompt,
-    dumpIngestPayloads:
-      process.env.SOLOMEMORY_DUMP_INGEST === "true" ||
-      (fileConfig.dumpIngestPayloads ?? DEFAULTS.dumpIngestPayloads),
+    ...resolveDumpConfig(fileConfig),
   };
 }
 
@@ -126,6 +137,7 @@ export interface RuntimeConfig {
   readonly autoSyncConversations: boolean;
   readonly filterPrompt: string;
   readonly dumpIngestPayloads: boolean;
+  readonly dumpDir: string;
 }
 
 export function getConfig(): RuntimeConfig {
@@ -146,6 +158,7 @@ function isRuntimeConfigKey(prop: string): prop is keyof RuntimeConfig {
     "autoSyncConversations",
     "filterPrompt",
     "dumpIngestPayloads",
+    "dumpDir",
   ];
   return validKeys.includes(prop);
 }
@@ -168,6 +181,7 @@ const emptyConfig: RuntimeConfig = {
   autoSyncConversations: false,
   filterPrompt: "",
   dumpIngestPayloads: false,
+  dumpDir: "",
 };
 
 export const CONFIG: RuntimeConfig = new Proxy<RuntimeConfig>(emptyConfig, configHandler);
