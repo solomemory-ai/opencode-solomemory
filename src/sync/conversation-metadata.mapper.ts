@@ -8,6 +8,7 @@ import { detectLanguages, detectPackageManager } from "../services/detectors.js"
 import {
   getGitAuthor,
   getGitRemoteOrigin,
+  getGitRepoRoot,
   getGitStatus,
   parseRepoOwnerAndName,
 } from "../services/git.js";
@@ -35,7 +36,8 @@ export async function buildConversationMetadata(
     getConversationTags(tags, sessionID, directory),
     detectLanguages(directory),
   ]);
-  const gitRemote = getGitRemoteOrigin(directory);
+  const gitRoot = getGitRepoRoot(directory);
+  const gitRemote = gitRoot ? getGitRemoteOrigin(directory) : null;
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
 
   return {
@@ -51,8 +53,8 @@ export async function buildConversationMetadata(
     repoOwner: orEmpty(repoOwner),
     repoName: orEmpty(repoName),
     branch: orEmpty(conversationTags.metadata.gitBranch),
-    gitAuthor: orEmpty(getGitAuthor(directory)),
-    gitStatus: orEmpty(getGitStatus(directory)),
+    gitAuthor: orEmpty(gitRoot ? getGitAuthor(directory) : null),
+    gitStatus: orEmpty(gitRoot ? getGitStatus(directory) : null),
     workspace: orEmpty(conversationTags.metadata.workspaceName),
     workspaceType: orEmpty(conversationTags.metadata.workspaceType),
     isMonorepo: isMonorepo(directory),
