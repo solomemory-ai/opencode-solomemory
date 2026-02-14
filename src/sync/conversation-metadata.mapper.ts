@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from "../config.js";
-import { detectLanguage, detectPackageManager } from "../services/detectors.js";
+import { detectLanguages, detectPackageManager } from "../services/detectors.js";
 import {
   getGitAuthor,
   getGitRemoteOrigin,
@@ -31,9 +31,9 @@ export async function buildConversationMetadata(
   rawMessageCount: number,
 ): Promise<Record<string, string | number | boolean>> {
   const { sessionID, directory, tags } = input;
-  const [conversationTags, language] = await Promise.all([
+  const [conversationTags, languages] = await Promise.all([
     getConversationTags(tags, sessionID, directory),
-    detectLanguage(directory),
+    detectLanguages(directory),
   ]);
   const gitRemote = getGitRemoteOrigin(directory);
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
@@ -59,7 +59,8 @@ export async function buildConversationMetadata(
     machine: conversationTags.metadata.machineHostname,
     os: getOS(),
     nodeVersion: getNodeVersion(),
-    language: orEmpty(language),
+    language: orEmpty(languages[0] ?? null),
+    languages: languages.join(","),
     packageManager: orEmpty(detectPackageManager(directory)),
   };
 }

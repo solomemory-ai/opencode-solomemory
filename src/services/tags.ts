@@ -4,7 +4,7 @@ import { hostname, platform } from "node:os";
 import path from "node:path";
 
 import { CONFIG } from "../config.js";
-import { detectFramework, detectLanguage, detectPackageManager } from "./detectors.js";
+import { detectFramework, detectLanguages, detectPackageManager } from "./detectors.js";
 import { getGitBranch, getGitRemoteOrigin, getGitRepoRoot, parseRepoOwnerAndName } from "./git.js";
 import { getWorkspaceInfo } from "./workspace.js";
 
@@ -81,10 +81,9 @@ export function getWorkspaceTag(directory: string): string | null {
   return `workspace_${sanitized}`;
 }
 
-export async function getLanguageTag(directory: string): Promise<string | null> {
-  const lang = await detectLanguage(directory);
-  if (!lang) return null;
-  return `lang_${lang}`;
+export async function getLanguageTags(directory: string): Promise<string[]> {
+  const languages = await detectLanguages(directory);
+  return languages.map((lang) => `lang_${lang}`);
 }
 
 export function getOrgTag(directory: string): string | null {
@@ -129,7 +128,7 @@ export interface Tags {
   branch: string | null;
   machine: string;
   platform: string;
-  language: string | null;
+  languages: string[];
   org: string | null;
   packageManager: string | null;
   os: string;
@@ -145,8 +144,8 @@ export interface TagMetadata extends Tags {
 }
 
 export async function getTags(directory: string): Promise<Tags> {
-  const [language, framework] = await Promise.all([
-    getLanguageTag(directory),
+  const [languages, framework] = await Promise.all([
+    getLanguageTags(directory),
     getFrameworkTag(directory),
   ]);
 
@@ -157,7 +156,7 @@ export async function getTags(directory: string): Promise<Tags> {
     branch: getBranchTag(directory),
     machine: getMachineTag(),
     platform: getPlatformTag(),
-    language,
+    languages,
     org: getOrgTag(directory),
     packageManager: getPackageManagerTag(directory),
     os: getOsTag(),
@@ -203,13 +202,12 @@ export async function getConversationTags(
     tags.repository,
     tags.workspace,
     tags.branch,
-    tags.language,
     tags.org,
     tags.packageManager,
     tags.framework,
   ].filter((tag): tag is string => tag !== null);
 
-  const containerTags = [...optionalTags, tags.project, tags.os, tags.platform];
+  const containerTags = [...optionalTags, ...tags.languages, tags.project, tags.os, tags.platform];
 
   return {
     containerTags,

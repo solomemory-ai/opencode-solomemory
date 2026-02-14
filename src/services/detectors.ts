@@ -16,11 +16,11 @@ type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> };
 // ============================================================================
 
 /**
- * Detect the primary programming language of a project directory.
+ * Detect all programming languages in a project directory, ordered by byte count.
  * Uses linguist-js (GitHub Linguist data, 600+ languages) with quick mode
  * for performance. Falls back to config-file heuristics if linguist fails.
  */
-export async function detectLanguage(directory: string): Promise<string | null> {
+export async function detectLanguages(directory: string): Promise<string[]> {
   try {
     const result = await linguist(directory, {
       quick: true,
@@ -28,20 +28,28 @@ export async function detectLanguage(directory: string): Promise<string | null> 
       categories: ["programming"],
     });
 
-    // Find the language with the most bytes
     const sorted = Object.entries(result.languages.results)
       .filter(([, data]) => data.type === "programming")
       .toSorted(([, a], [, b]) => b.bytes - a.bytes);
 
-    const primary = sorted[0];
-    if (primary) {
-      return primary[0].toLowerCase();
+    if (sorted.length > 0) {
+      return sorted.map(([name]) => name.toLowerCase());
     }
   } catch {
     // linguist-js may fail on some directories — fall through to heuristic
   }
 
-  return detectLanguageFallback(directory);
+  const fallback = detectLanguageFallback(directory);
+  return fallback ? [fallback] : [];
+}
+
+/**
+ * Detect the primary programming language of a project directory.
+ * Convenience wrapper over detectLanguages() for single-value consumers.
+ */
+export async function detectLanguage(directory: string): Promise<string | null> {
+  const languages = await detectLanguages(directory);
+  return languages[0] ?? null;
 }
 
 /** Fast config-file heuristic fallback for language detection */
