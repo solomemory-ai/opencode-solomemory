@@ -8,9 +8,9 @@ import type { ConversationSyncState } from "./sync.types.js";
 
 export const sessionSyncState = new Map<string, ConversationSyncState>();
 
-export function initSyncState(sessionID: string): ConversationSyncState {
+export function initSyncState(sessionID: string, initialIndex = -1): ConversationSyncState {
   const syncState: ConversationSyncState = {
-    lastSyncedMessageIndex: -1,
+    lastSyncedMessageIndex: initialIndex,
     conversationId: `${CONFIG.platformIdentifier}_${sessionID}`,
   };
   sessionSyncState.set(sessionID, syncState);

@@ -11,6 +11,7 @@ import type { IngestPayload } from "../services/client-types.js";
 import { reportError } from "../services/error-reporter.js";
 import { log } from "../services/logger.js";
 import { dumpIngestPayload } from "../services/payload-dump.js";
+import { findLastUserMessageIndex } from "./session-message.validation.js";
 import type { ConversationSyncState, IngestParams } from "./sync.types.js";
 import { initSyncState, sessionSyncState } from "./sync-state.store.js";
 
@@ -22,7 +23,13 @@ export async function fetchSessionMessages(
     path: { id: sessionID },
   });
   const allMessages: unknown[] = messagesResponse.data ?? [];
-  const syncState = sessionSyncState.get(sessionID) ?? initSyncState(sessionID);
+
+  let syncState = sessionSyncState.get(sessionID);
+  if (!syncState) {
+    const lastUserIdx = findLastUserMessageIndex(allMessages);
+    syncState = initSyncState(sessionID, Math.max(lastUserIdx - 1, -1));
+  }
+
   return { allMessages, syncState };
 }
 

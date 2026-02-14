@@ -27,6 +27,16 @@ function isSyntheticUserMessage(msg: SessionMessage): boolean {
   return SYNTHETIC_USER_PATTERNS.some((pattern) => content.startsWith(pattern));
 }
 
+export function findLastUserMessageIndex(allMessages: unknown[]): number {
+  for (let i = allMessages.length - 1; i >= 0; i--) {
+    const msg = allMessages[i];
+    if (isSessionMessage(msg) && msg.info.role === "user") {
+      return i;
+    }
+  }
+  return -1;
+}
+
 export function extractValidMessages(
   allMessages: unknown[],
   extractFrom: number,
