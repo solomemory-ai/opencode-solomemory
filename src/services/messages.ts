@@ -24,9 +24,11 @@ export interface SessionMessage {
 export function extractContentFromParts(parts: Part[]): string {
   return parts
     .filter(
-      (p): p is Part & { type: "text"; text: string } =>
-        p.type === "text" && "text" in p && !("synthetic" in p && Boolean(p.synthetic)),
+      (p): p is Part & { text: string } =>
+        (p.type === "text" || p.type === "reasoning") &&
+        "text" in p &&
+        !("synthetic" in p && Boolean(p.synthetic)),
     )
-    .map((p) => p.text)
+    .map((p) => (p.type === "reasoning" ? `Thinking: ${p.text}` : p.text))
     .join("\n");
 }
