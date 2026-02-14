@@ -4,23 +4,25 @@
  */
 
 import { CONFIG } from "../config.js";
-import { detectLanguages, detectPackageManager } from "../services/detectors.js";
+import { detectFramework, detectLanguages, detectPackageManager } from "../services/detectors.js";
 import {
   getGitAuthor,
+  getGitBranch,
   getGitRemoteOrigin,
   getGitRepoRoot,
   getGitStatus,
   parseRepoOwnerAndName,
 } from "../services/git.js";
 import {
-  getConversationTags,
   getDirName,
+  getMachineId,
   getNodeVersion,
   getOS,
   getParentDirName,
   getTimezone,
   isMonorepo,
 } from "../services/tags.js";
+import { getWorkspaceInfo } from "../services/workspace.js";
 import type { MetadataInput } from "./sync.types.js";
 
 function orEmpty(value: string | null): string {
@@ -30,13 +32,16 @@ function orEmpty(value: string | null): string {
 export async function buildConversationMetadata(
   input: MetadataInput,
   rawMessageCount: number,
-): Promise<Record<string, string | number | boolean>> {
-  const { sessionID, directory, tags } = input;
-  const [conversationTags, languages] = await Promise.all([
-    getConversationTags(tags, sessionID, directory),
-    detectLanguages(directory),
-  ]);
+): Promise<Record<string, string | number | boolean | string[]>> {
+  const { sessionID, directory } = input;
   const gitRoot = getGitRepoRoot(directory);
+  const workspace = getWorkspaceInfo(directory, gitRoot);
+
+  const [languages, framework] = await Promise.all([
+    detectLanguages(directory),
+    detectFramework(directory),
+  ]);
+
   const gitRemote = gitRoot ? getGitRemoteOrigin(directory) : null;
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
 
@@ -52,16 +57,17 @@ export async function buildConversationMetadata(
     repository: orEmpty(gitRemote),
     repoOwner: orEmpty(repoOwner),
     repoName: orEmpty(repoName),
-    branch: orEmpty(conversationTags.metadata.gitBranch),
+    branch: orEmpty(gitRoot ? getGitBranch(directory) : null),
     gitAuthor: orEmpty(gitRoot ? getGitAuthor(directory) : null),
     gitStatus: orEmpty(gitRoot ? getGitStatus(directory) : null),
-    workspace: orEmpty(conversationTags.metadata.workspaceName),
-    workspaceType: orEmpty(conversationTags.metadata.workspaceType),
+    workspace: orEmpty(workspace?.name ?? null),
+    workspaceType: orEmpty(workspace?.type ?? null),
     isMonorepo: isMonorepo(directory),
-    machine: conversationTags.metadata.machineHostname,
+    machine: getMachineId(),
     os: getOS(),
     nodeVersion: getNodeVersion(),
-    languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")).join(","),
+    languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")),
     packageManager: orEmpty(detectPackageManager(directory)),
+    framework: orEmpty(framework),
   };
 }
