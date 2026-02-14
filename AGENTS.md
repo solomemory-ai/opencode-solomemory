@@ -62,7 +62,7 @@ opencode-solomemory/
 | Symbol                      | Type           | Location                                   | Role                                                                                                      |
 | --------------------------- | -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                                                              |
-| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help)                                              |
+| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help). Takes `ProjectScope` for project filtering  |
 | `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs                           |
 | `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)                                         |
 | `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                                                     |
@@ -80,11 +80,13 @@ opencode-solomemory/
 | `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                                                   |
 | `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                                                     |
 | `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                                                     |
-| `getTags`                   | async fn       | `src/services/tags.ts`                     | Container tag generation for search/list routing (project, repo, branch, etc.)                            |
+| `getTags`                   | async fn       | `src/services/tags.ts`                     | Tag generation for ingest metadata enrichment (not used for query filtering)                              |
 | `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection                                        |
 | `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                                                     |
 | `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                                               |
 | `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                                                           |
+| `resolveProjectScope`       | fn             | `src/index.ts`, `src/tools.ts`             | Resolves `ProjectScope` from directory via `getGitRemoteOrigin` (git→repository, non-git→directory)       |
+| `ProjectScope`              | interface      | `src/types/index.ts`                       | `{ field: "repository" \| "directory"; value: string }` — used by all query methods for project filtering |
 
 ## HOOKS
 
@@ -99,24 +101,40 @@ opencode-solomemory/
 
 `solomemory` tool with modes: `search` (query memories), `profile` (show user profile), `list` (list memories by scope), `projects` (list known projects), `help` (usage info).
 
-Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search), `containerTag` (target project by tag — resolved to `metadataFilters` before API call).
+Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search by directory — resolves to `ProjectScope` via git remote detection), `containerTag` (deprecated, ignored — legacy hashed tag argument).
 
 ## MEMORY SCOPING
 
-| Scope       | Tag Source                                                                 | Example                          |
-| ----------- | -------------------------------------------------------------------------- | -------------------------------- |
-| User        | `user` (hardcoded)                                                         | Cross-project prefs              |
-| Project     | Workspace dir hash (sha256, full 64 chars)                                 | `proj_<sha256>`                  |
-| Repo        | Git remote URL hash (sha256, full 64 chars)                                | `repo_<sha256>`                  |
-| Branch      | Git branch name (sanitized, NOT hashed)                                    | `branch_feat_auth`               |
-| Language    | `linguist-js` detection + heuristic fallback (multi-tag, all detected)     | `lang_python`, `lang_typescript` |
-| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `fw_nextjs`                      |
-| Org         | Git remote owner (lowercase)                                               | `org_mycompany`                  |
-| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `pkgmgr_bun`                     |
-| OS          | `os.platform()`                                                            | `os_linux`                       |
-| Machine     | Hostname hash (sha256, full 64 chars)                                      | `machine_<sha256>`               |
-| Workspace   | Monorepo workspace name (sanitized)                                        | `workspace_api`                  |
-| Platform    | Config `platformIdentifier`                                                | `plat_opencode`                  |
+### Query Scoping (read path — `ProjectScope`)
+
+Query methods (`searchMemories`, `listMemories`, `getTopics`) use `ProjectScope` to filter by named metadata fields:
+
+| Scope   | Filter                                               | Example value                              |
+| ------- | ---------------------------------------------------- | ------------------------------------------ |
+| User    | Dedicated endpoint (no project filter)               | —                                          |
+| Project | `{ field: "repository", value: "<git remote URL>" }` | `https://github.com/org/repo.git`          |
+| Project | `{ field: "directory", value: "<absolute path>" }`   | `/home/user/my-project` (non-git fallback) |
+| Global  | No filter (all memories)                             | —                                          |
+
+`ProjectScope` is resolved via `resolveProjectScope()` in `index.ts` and `tools.ts` using `getGitRemoteOrigin()` — git repos use `repository`, non-git dirs fall back to `directory`.
+
+### Ingest Metadata (write path — `tags.ts`)
+
+Ingest sends named metadata fields. Server derives routing tags from these. `tags.ts` generators are used only for ingest metadata enrichment (not query filtering).
+
+| Field       | Source                                                                     | Example metadata value         |
+| ----------- | -------------------------------------------------------------------------- | ------------------------------ |
+| Platform    | Config `platformIdentifier`                                                | `opencode`                     |
+| Repository  | Git remote URL (raw, not hashed)                                           | `https://github.com/org/repo`  |
+| Directory   | `process.cwd()`                                                            | `/home/user/my-project`        |
+| Branch      | Git branch name                                                            | `feat/auth`                    |
+| Languages   | `linguist-js` detection + heuristic fallback (multi-value, all detected)   | `["typescript", "javascript"]` |
+| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `nextjs`                       |
+| Org         | Git remote owner (lowercase)                                               | `mycompany`                    |
+| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `bun`                          |
+| OS          | `os.platform()`                                                            | `linux`                        |
+| Machine     | Hostname hash (sha256, full 64 chars)                                      | `<sha256>`                     |
+| Workspace   | Monorepo workspace name (sanitized)                                        | `api`                          |
 
 ## CONFIG RESOLUTION ORDER
 
@@ -171,4 +189,5 @@ bun dev                  # tsc --watch
 - **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
 - **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
 - **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata `languages` is a `string[]` (e.g. `["typescript", "javascript"]`)
-- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, framework, etc.) — no `tags` array. Server derives routing tags from these named fields. Tags (`getTags`) are still used client-side for search/list scoping only
+- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, framework, etc.) — no `tags` array. Server derives routing tags from these named fields
+- **Query uses named metadata fields**: Query methods (`searchMemories`, `listMemories`, `getTopics`) filter by `ProjectScope` — `{ field: "repository" | "directory", value: "<raw value>" }`. Tags (`getTags`) are used only for ingest metadata enrichment, not for query filtering

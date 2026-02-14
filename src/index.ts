@@ -6,12 +6,14 @@ import { CONFIG, isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import { formatContextForPrompt } from "./services/context.js";
 import { reportError } from "./services/error-reporter.js";
+import { getGitRemoteOrigin } from "./services/git.js";
 import { log } from "./services/logger.js";
 import type { Tags } from "./services/tags.js";
 import { getTags } from "./services/tags.js";
 import { subagentSessions } from "./state.js";
 import { handleSessionCompacted, handleSessionIdle, sessionSyncState } from "./sync.js";
 import { executeTool, TOOL_DESCRIPTION, type ToolArgs } from "./tools.js";
+import type { ProjectScope } from "./types/index.js";
 
 declare const PKG_VERSION: string;
 
@@ -61,7 +63,7 @@ interface ContextInjectionInput {
   sessionID: string;
   messageID: string;
   userMessage: string;
-  projectScopeTag: string;
+  projectScope: ProjectScope;
 }
 
 async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]): Promise<void> {
@@ -70,7 +72,7 @@ async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]
   const [profileResult, userMemoriesResult, topicsResult] = await Promise.all([
     solomemoryClient.getProfile(),
     solomemoryClient.searchUserMemories(input.userMessage),
-    solomemoryClient.getTopics(input.projectScopeTag, CONFIG.maxProjectMemories),
+    solomemoryClient.getTopics(input.projectScope, CONFIG.maxProjectMemories),
   ]);
 
   const profile = profileResult.success ? profileResult : null;
@@ -100,14 +102,14 @@ async function fetchAndInjectContext(input: ContextInjectionInput, parts: Part[]
 interface ChatMessageInput {
   readonly sessionID: string;
   readonly agentName: string | undefined;
-  readonly projectScopeTag: string;
+  readonly projectScope: ProjectScope;
 }
 
 function handleChatMessage(
   input: ChatMessageInput,
   output: { message: { id: string }; parts: Part[] },
 ): Promise<void> | undefined {
-  const { sessionID, agentName, projectScopeTag } = input;
+  const { sessionID, agentName, projectScope } = input;
 
   if (subagentSessions.has(sessionID)) return undefined;
 
@@ -129,7 +131,7 @@ function handleChatMessage(
 
   injectedSessions.add(sessionID);
   return fetchAndInjectContext(
-    { sessionID, messageID: output.message.id, userMessage, projectScopeTag },
+    { sessionID, messageID: output.message.id, userMessage, projectScope },
     output.parts,
   );
 }
@@ -198,8 +200,14 @@ async function handleEvent(event: Event, context: PluginContext): Promise<void> 
   await handleIdleEvent(context, event.properties.sessionID);
 }
 
+function resolveProjectScope(directory: string): ProjectScope {
+  const repository = getGitRemoteOrigin(directory);
+  if (repository) return { field: "repository", value: repository };
+  return { field: "directory", value: directory };
+}
+
 interface InitResult {
-  projectScopeTag: string;
+  projectScope: ProjectScope;
   pluginContext: PluginContext;
 }
 
@@ -207,12 +215,12 @@ async function initPlugin(ctx: PluginInput): Promise<InitResult> {
   const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
   const { directory } = ctx;
   const tags = await getTags(directory);
-  const projectScopeTag = tags.repository ?? tags.project;
+  const projectScope = resolveProjectScope(directory);
 
   log(`oc-solomemory v${version}`, {
     directory,
     tags,
-    projectScopeTag,
+    projectScope,
     configured: isConfigured(),
   });
   void ctx.client.tui.showToast({
@@ -224,11 +232,11 @@ async function initPlugin(ctx: PluginInput): Promise<InitResult> {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");
   }
 
-  return { projectScopeTag, pluginContext: { ctx, directory, tags } };
+  return { projectScope, pluginContext: { ctx, directory, tags } };
 }
 
 export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
-  const { projectScopeTag, pluginContext } = await initPlugin(ctx);
+  const { projectScope, pluginContext } = await initPlugin(ctx);
 
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -237,7 +245,7 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
 
       try {
         await handleChatMessage(
-          { sessionID: input.sessionID, agentName: input.agent, projectScopeTag },
+          { sessionID: input.sessionID, agentName: input.agent, projectScope },
           output,
         );
       } catch (error) {
@@ -258,7 +266,7 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
           containerTag: tool.schema.string().optional(),
         },
         execute(args: ToolArgs) {
-          return executeTool(args, projectScopeTag);
+          return executeTool(args, projectScope);
         },
       }),
     },

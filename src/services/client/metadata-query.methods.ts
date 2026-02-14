@@ -3,14 +3,9 @@
  * project listing, and topic retrieval.
  */
 
-import type {
-  GetJobStatusResult,
-  GetTopicsResult,
-  ListProjectsResult,
-  ProfileResult,
-} from "../client-types.js";
+import type { ProjectScope } from "../../types/index.js";
+import type { GetTopicsResult, ListProjectsResult, ProfileResult } from "../client-types.js";
 import {
-  isJobStatusResponse,
   isProfileResponse,
   isProjectsResponse,
   isTopicsResponse,
@@ -38,18 +33,6 @@ export async function getProfile(query?: string): Promise<ProfileResult> {
   }
 }
 
-/** Check the processing status of a conversation ingestion job. */
-export async function getJobStatus(jobId: string): Promise<GetJobStatusResult> {
-  try {
-    const result = await get("/conversations/jobs/" + jobId);
-    if (!isJobStatusResponse(result)) throw new Error("Invalid job status response format");
-    return { success: true as const, job: result };
-  } catch (error) {
-    reportError(error, { context: "client:getJobStatus", jobId });
-    return { success: false as const, error: toErrorMessage(error) };
-  }
-}
-
 /** List all projects visible to the authenticated user. */
 export async function listProjects(): Promise<ListProjectsResult> {
   log("listProjects: start");
@@ -66,14 +49,14 @@ export async function listProjects(): Promise<ListProjectsResult> {
   }
 }
 
-/** Retrieve topic clusters for a specific project container. */
+/** Retrieve topic clusters for a specific project scope (by repository or directory). */
 export async function getTopics(
-  containerTag: string,
+  scope: ProjectScope,
   limit = DEFAULT_PAGE_SIZE,
 ): Promise<GetTopicsResult> {
-  log("getTopics: start", { containerTag, limit });
+  log("getTopics: start", { scope, limit });
   try {
-    const filter = JSON.stringify([{ field: "tags", operator: "eq", value: [containerTag] }]);
+    const filter = JSON.stringify([{ field: scope.field, operator: "eq", value: scope.value }]);
     const params = new URLSearchParams({ metadataFilters: filter, limit: String(limit) });
     const result = await get("/memories/topics?" + params.toString());
     if (!isTopicsResponse(result)) throw new Error("Invalid topics response format");
@@ -82,7 +65,7 @@ export async function getTopics(
   } catch (error) {
     const msg = toErrorMessage(error);
     log("getTopics: error", { error: msg });
-    reportError(error, { context: "client:getTopics", containerTag });
+    reportError(error, { context: "client:getTopics", scope });
     return topicsFailure(msg);
   }
 }

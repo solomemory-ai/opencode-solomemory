@@ -57,3 +57,9 @@ export interface MetadataFilter {
   value: string | number | boolean | string[];
   operator?: "eq" | "ne" | "contains";
 }
+
+/** Identifies a project scope for querying by raw metadata field. */
+export interface ProjectScope {
+  field: "repository" | "directory";
+  value: string;
+}

@@ -2,8 +2,8 @@ import { isConfigured } from "./config.js";
 import { solomemoryClient } from "./services/client.js";
 import type { ListMemoriesResult, ProjectInfo } from "./services/client-types.js";
 import { reportError } from "./services/error-reporter.js";
-import { getProjectTag, getRepositoryTag } from "./services/tags.js";
-import type { MemoryScope } from "./types/index.js";
+import { getGitRemoteOrigin } from "./services/git.js";
+import type { MemoryScope, ProjectScope } from "./types/index.js";
 
 const PERCENT_MULTIPLIER = 100;
 const DEFAULT_LIST_LIMIT = 20;
@@ -18,10 +18,13 @@ export interface ToolArgs {
   containerTag?: string;
 }
 
-function resolveProjectTag(args: ToolArgs, defaultTag: string): string {
-  if (args.containerTag) return args.containerTag;
-  if (args.path) return getRepositoryTag(args.path) ?? getProjectTag(args.path);
-  return defaultTag;
+function resolveProjectScope(args: ToolArgs, defaultScope: ProjectScope): ProjectScope {
+  if (args.path) {
+    const repository = getGitRemoteOrigin(args.path);
+    if (repository) return { field: "repository", value: repository };
+    return { field: "directory", value: args.path };
+  }
+  return defaultScope;
 }
 
 interface SearchResultItem {
@@ -108,20 +111,20 @@ async function handleProfile(query: string | undefined): Promise<string> {
 
 async function listByScope(
   scope: string,
-  projectScopeTag: string,
+  projectScope: ProjectScope,
   limit: number,
 ): Promise<ListMemoriesResult> {
   if (scope === "user") return solomemoryClient.listUserMemories(limit);
   if (scope === "global") return solomemoryClient.listGlobalMemories(limit);
-  return solomemoryClient.listMemories(projectScopeTag, limit);
+  return solomemoryClient.listMemories(projectScope, limit);
 }
 
-async function handleList(args: ToolArgs, projectScopeTag: string): Promise<string> {
+async function handleList(args: ToolArgs, defaultScope: ProjectScope): Promise<string> {
   const scope = args.scope ?? "project";
   const limit = args.limit ?? DEFAULT_LIST_LIMIT;
-  const tag = resolveProjectTag(args, projectScopeTag);
+  const resolvedScope = resolveProjectScope(args, defaultScope);
 
-  const result = await listByScope(scope, tag, limit);
+  const result = await listByScope(scope, resolvedScope, limit);
 
   if (!result.success) {
     return errorResponse(result.error);
@@ -148,18 +151,26 @@ async function searchUserScope(query: string, limit: number): Promise<string> {
   return formatSearchResults({ query, scope: "user", results: result.results, limit });
 }
 
-async function searchProjectScope(query: string, tag: string, limit: number): Promise<string> {
-  const result = await solomemoryClient.searchMemories(query, tag);
+async function searchProjectScope(
+  query: string,
+  scope: ProjectScope,
+  limit: number,
+): Promise<string> {
+  const result = await solomemoryClient.searchMemories(query, scope);
   if (!result.success) {
     return errorResponse(result.error);
   }
   return formatSearchResults({ query, scope: "project", results: result.results, limit });
 }
 
-async function searchBothScopes(query: string, tag: string, limit: number): Promise<string> {
+async function searchBothScopes(
+  query: string,
+  scope: ProjectScope,
+  limit: number,
+): Promise<string> {
   const [userResult, projectResult] = await Promise.all([
     solomemoryClient.searchUserMemories(query),
-    solomemoryClient.searchMemories(query, tag),
+    solomemoryClient.searchMemories(query, scope),
   ]);
 
   if (!userResult.success) {
@@ -195,27 +206,27 @@ async function searchGlobalScope(query: string, limit: number): Promise<string> 
   return formatSearchResults({ query, scope: "global", results: result.results, limit });
 }
 
-async function handleSearch(args: ToolArgs, projectScopeTag: string): Promise<string> {
+async function handleSearch(args: ToolArgs, defaultScope: ProjectScope): Promise<string> {
   if (args.query === undefined) {
     return errorResponse("query parameter is required for search mode");
   }
 
   const limit = args.limit ?? DEFAULT_SEARCH_LIMIT;
-  const tag = resolveProjectTag(args, projectScopeTag);
+  const resolvedScope = resolveProjectScope(args, defaultScope);
 
   if (args.scope === "user") {
     return searchUserScope(args.query, limit);
   }
 
   if (args.scope === "project") {
-    return searchProjectScope(args.query, tag, limit);
+    return searchProjectScope(args.query, resolvedScope, limit);
   }
 
   if (args.scope === "global") {
     return searchGlobalScope(args.query, limit);
   }
 
-  return searchBothScopes(args.query, tag, limit);
+  return searchBothScopes(args.query, resolvedScope, limit);
 }
 
 async function handleProjects(): Promise<string> {
@@ -236,7 +247,7 @@ async function handleProjects(): Promise<string> {
   });
 }
 
-export async function executeTool(args: ToolArgs, projectScopeTag: string): Promise<string> {
+export async function executeTool(args: ToolArgs, projectScope: ProjectScope): Promise<string> {
   if (!isConfigured()) {
     return errorResponse(
       "SOLOMEMORY_API_KEY not set. Set it in your environment to use Solo Memory.",
@@ -251,13 +262,13 @@ export async function executeTool(args: ToolArgs, projectScopeTag: string): Prom
         return handleHelp();
       }
       case "search": {
-        return await handleSearch(args, projectScopeTag);
+        return await handleSearch(args, projectScope);
       }
       case "profile": {
         return await handleProfile(args.query);
       }
       case "list": {
-        return await handleList(args, projectScopeTag);
+        return await handleList(args, projectScope);
       }
       case "projects": {
         return await handleProjects();

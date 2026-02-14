@@ -3,7 +3,7 @@
  * for SolomemoryClient. Pure compile-time declarations — no runtime code.
  */
 
-import type { JobStatus, Memory, MetadataFilter } from "../types/index.js";
+import type { Memory } from "../types/index.js";
 
 // ── API response shapes ───────────────────────────────────
 
@@ -76,13 +76,6 @@ export interface IngestPayload {
   readonly metadata: Record<string, unknown>;
 }
 
-export interface MetadataSearchOptions {
-  readonly query: string;
-  readonly tags?: string[];
-  readonly metadataFilters: MetadataFilter[];
-  readonly limit?: number;
-}
-
 // ── Discriminated union result types ──────────────────────
 
 export type SearchMemoriesResult =
@@ -92,12 +85,6 @@ export type SearchMemoriesResult =
 export type ProfileResult =
   | { success: true; profile: ProfileResponse["profile"] }
   | { success: false; error: string; profile: null };
-
-export type AddMemoryResult =
-  | { success: true; id: string; status: string }
-  | { success: false; error: string };
-
-export type DeleteMemoryResult = { success: true } | { success: false; error: string };
 
 export type ListMemoriesResult =
   | {
@@ -114,10 +101,6 @@ export type ListMemoriesResult =
 
 export type IngestResult =
   | { success: true; id: number; sourceId: string; status: string }
-  | { success: false; error: string };
-
-export type GetJobStatusResult =
-  | { success: true; job: JobStatus }
   | { success: false; error: string };
 
 export type ListProjectsResult =

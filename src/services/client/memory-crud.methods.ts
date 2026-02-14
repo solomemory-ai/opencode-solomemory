@@ -1,17 +1,10 @@
 /**
- * Memory CRUD operations: create (add/ingest), delete, and list
+ * Memory CRUD operations: ingest and list
  * memories by project container, user scope, or globally.
  */
 
-import { randomUUID } from "node:crypto";
-
-import type {
-  AddMemoryResult,
-  DeleteMemoryResult,
-  IngestPayload,
-  IngestResult,
-  ListMemoriesResult,
-} from "../client-types.js";
+import type { ProjectScope } from "../../types/index.js";
+import type { IngestPayload, IngestResult, ListMemoriesResult } from "../client-types.js";
 import {
   isIngestResponse,
   isListMemoriesResponse,
@@ -20,35 +13,7 @@ import {
 } from "../client-types.js";
 import { reportError } from "../error-reporter.js";
 import { log } from "../logger.js";
-import {
-  apiRequest,
-  DEFAULT_PAGE_SIZE,
-  post,
-  postWithRetry,
-  TIMEOUT_MS,
-  withTimeout,
-} from "./api-transport.http.js";
-
-/** Create a memory via the ingest pipeline with a generated sourceId. */
-export async function addMemory(
-  content: string,
-  containerTag: string,
-  metadata?: Record<string, string | number | boolean | string[]>,
-): Promise<AddMemoryResult> {
-  log("addMemory: start", { containerTag, contentLength: content.length });
-  const result = await ingest({
-    sourceId: `memory_${randomUUID()}`,
-    sourceType: "memory",
-    content: { text: content },
-    metadata: {
-      tags: [containerTag],
-      ...metadata,
-    },
-  });
-  if (!result.success) return { success: false as const, error: result.error };
-  log("addMemory: success", { id: result.id });
-  return { success: true as const, id: String(result.id), status: result.status };
-}
+import { DEFAULT_PAGE_SIZE, post, postWithRetry } from "./api-transport.http.js";
 
 /** Send a payload through the ingest pipeline. */
 export async function ingest(payload: IngestPayload): Promise<IngestResult> {
@@ -74,30 +39,15 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   }
 }
 
-/** Delete a single memory by its ID. */
-export async function deleteMemory(memoryId: string): Promise<DeleteMemoryResult> {
-  log("deleteMemory: start", { memoryId });
-  try {
-    await withTimeout(apiRequest("/memories/" + memoryId, "DELETE"), TIMEOUT_MS);
-    log("deleteMemory: success", { memoryId });
-    return { success: true };
-  } catch (error) {
-    const msg = toErrorMessage(error);
-    log("deleteMemory: error", { memoryId, error: msg });
-    reportError(error, { context: "client:deleteMemory", memoryId });
-    return { success: false, error: msg };
-  }
-}
-
-/** List memories within a specific project container. */
+/** List memories within a specific project scope (by repository or directory). */
 export async function listMemories(
-  containerTag: string,
+  scope: ProjectScope,
   limit = DEFAULT_PAGE_SIZE,
 ): Promise<ListMemoriesResult> {
-  log("listMemories: start", { containerTag, limit });
+  log("listMemories: start", { scope, limit });
   try {
     const body = {
-      metadataFilters: [{ field: "tags", operator: "eq", value: [containerTag] }],
+      metadataFilters: [{ field: scope.field, operator: "eq", value: scope.value }],
       limit,
       order: "desc",
       sort: "createdAt",
@@ -109,7 +59,7 @@ export async function listMemories(
   } catch (error) {
     const msg = toErrorMessage(error);
     log("listMemories: error", { error: msg });
-    reportError(error, { context: "client:listMemories", containerTag });
+    reportError(error, { context: "client:listMemories", scope });
     return listFailure(msg);
   }
 }

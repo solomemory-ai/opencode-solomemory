@@ -3,7 +3,7 @@
  * Each guard validates the shape of an unknown API response.
  */
 
-import type { IngestResponse, JobStatus } from "../types/index.js";
+import type { IngestResponse } from "../types/index.js";
 import type {
   GetTopicsResult,
   ListMemoriesResponse,
@@ -56,18 +56,6 @@ export function isIngestResponse(data: unknown): data is IngestResponse {
     typeof data.id === "number" &&
     "status" in data &&
     typeof data.status === "string"
-  );
-}
-
-export function isJobStatusResponse(data: unknown): data is JobStatus {
-  if (!isObject(data)) return false;
-  return (
-    "id" in data &&
-    typeof data.id === "string" &&
-    "status" in data &&
-    typeof data.status === "string" &&
-    "progress" in data &&
-    typeof data.progress === "number"
   );
 }
 

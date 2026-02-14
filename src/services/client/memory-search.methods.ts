@@ -4,8 +4,8 @@
  */
 
 import { CONFIG } from "../../config.js";
-import type { MetadataFilter } from "../../types/index.js";
-import type { MetadataSearchOptions, SearchMemoriesResult } from "../client-types.js";
+import type { MetadataFilter, ProjectScope } from "../../types/index.js";
+import type { SearchMemoriesResult } from "../client-types.js";
 import { isSearchResponse, searchFailure, toErrorMessage } from "../client-types.js";
 import { reportError } from "../error-reporter.js";
 import { log } from "../logger.js";
@@ -24,19 +24,19 @@ function buildSearchBody(
   return body;
 }
 
-/** Search memories within a specific project container. */
+/** Search memories within a specific project scope (by repository or directory). */
 export async function searchMemories(
   query: string,
-  containerTag: string,
+  scope: ProjectScope,
   options?: { metadataFilters?: MetadataFilter[]; limit?: number },
 ): Promise<SearchMemoriesResult> {
-  log("searchMemories: start", { containerTag });
+  log("searchMemories: start", { scope });
   try {
-    const tagFilter: MetadataFilter = { field: "tags", operator: "eq", value: [containerTag] };
+    const scopeFilter: MetadataFilter = { field: scope.field, operator: "eq", value: scope.value };
     const existingFilters = options?.metadataFilters ?? [];
     const body = buildSearchBody(query, {
       ...options,
-      metadataFilters: [tagFilter, ...existingFilters],
+      metadataFilters: [scopeFilter, ...existingFilters],
     });
     const result = await post("/search", body);
     if (!isSearchResponse(result)) throw new Error("Invalid search response format");
@@ -45,7 +45,7 @@ export async function searchMemories(
   } catch (error) {
     const msg = toErrorMessage(error);
     log("searchMemories: error", { error: msg });
-    reportError(error, { context: "client:searchMemories", containerTag });
+    reportError(error, { context: "client:searchMemories", scope });
     return searchFailure(msg);
   }
 }
@@ -88,32 +88,6 @@ export async function searchGlobal(
     const msg = toErrorMessage(error);
     log("searchGlobal: error", { error: msg });
     reportError(error, { context: "client:searchGlobal" });
-    return searchFailure(msg);
-  }
-}
-
-/** Search memories filtered by metadata fields and optional tag scoping. */
-export async function searchByMetadata(
-  options: MetadataSearchOptions,
-): Promise<SearchMemoriesResult> {
-  log("searchByMetadata: start", { tags: options.tags });
-  try {
-    const filters = [...options.metadataFilters];
-    if (options.tags && options.tags.length > 0) {
-      filters.unshift({ field: "tags", operator: "eq", value: options.tags });
-    }
-    const result = await post("/search", {
-      q: options.query,
-      metadataFilters: filters,
-      limit: options.limit ?? CONFIG.maxMemories,
-    });
-    if (!isSearchResponse(result)) throw new Error("Invalid search response format");
-    log("searchByMetadata: success", { count: result.results.length });
-    return { success: true as const, ...result };
-  } catch (error) {
-    const msg = toErrorMessage(error);
-    log("searchByMetadata: error", { error: msg });
-    reportError(error, { context: "client:searchByMetadata" });
     return searchFailure(msg);
   }
 }

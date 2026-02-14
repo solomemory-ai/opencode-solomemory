@@ -5,7 +5,6 @@
 
 export {
   isIngestResponse,
-  isJobStatusResponse,
   isListMemoriesResponse,
   isProfileResponse,
   isProjectsResponse,
@@ -17,16 +16,12 @@ export {
   topicsFailure,
 } from "./client-api.typeguards.js";
 export type {
-  AddMemoryResult,
-  DeleteMemoryResult,
-  GetJobStatusResult,
   GetTopicsResult,
   IngestPayload,
   IngestResult,
   ListMemoriesResponse,
   ListMemoriesResult,
   ListProjectsResult,
-  MetadataSearchOptions,
   ProfileFact,
   ProfileResponse,
   ProfileResult,
