@@ -66,14 +66,6 @@ function resolveToolTitle(title: string, input: Record<string, unknown>): string
   return "";
 }
 
-/** Max chars of tool output to include in conversation messages. */
-const MAX_TOOL_OUTPUT_CHARS = 1000;
-
-function truncateOutput(output: string): string {
-  if (output.length <= MAX_TOOL_OUTPUT_CHARS) return output;
-  return `${output.slice(0, MAX_TOOL_OUTPUT_CHARS)}\n… (truncated)`;
-}
-
 function formatToolContent(tool: string, title: string, output?: string): string {
   const header = title ? `${tool}: ${title}` : tool;
   if (!output?.trim()) return header;
@@ -94,7 +86,7 @@ export function extractToolEntries(parts: Part[], directory: string): Conversati
     if (part.type === "tool" && part.state.status === "completed") {
       let title = resolveToolTitle(part.state.title, part.state.input);
       title = stripDirectoryPrefix(title, directory);
-      const output = truncateOutput(part.state.output);
+      const output = part.state.output;
       results.push({ role: "tool", content: formatToolContent(part.tool, title, output) });
     }
   }
