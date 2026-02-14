@@ -60,7 +60,7 @@ export async function buildConversationMetadata(
     os: getOS(),
     nodeVersion: getNodeVersion(),
     language: orEmpty(languages[0] ?? null),
-    languages: languages.join(","),
+    languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")).join(","),
     packageManager: orEmpty(detectPackageManager(directory)),
   };
 }

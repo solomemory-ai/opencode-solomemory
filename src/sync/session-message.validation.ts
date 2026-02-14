@@ -45,6 +45,7 @@ export function findLastUserMessageIndex(allMessages: unknown[]): number {
 export function extractValidMessages(
   allMessages: unknown[],
   extractFrom: number,
+  directory: string,
 ): ConversationMessage[] {
   if (allMessages.length - 1 <= extractFrom) {
     return [];
@@ -66,7 +67,7 @@ export function extractValidMessages(
       if (content.trim() && !isNoiseContent(content)) {
         results.push({ role: msg.info.role, content });
       }
-      results.push(...extractToolEntries(msg.parts));
+      results.push(...extractToolEntries(msg.parts, directory));
       return results;
     });
 }

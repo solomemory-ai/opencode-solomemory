@@ -70,11 +70,20 @@ function formatToolContent(tool: string, title: string): string {
   return title ? `${tool}: ${title}` : tool;
 }
 
-export function extractToolEntries(parts: Part[]): ConversationMessage[] {
+function stripDirectoryPrefix(title: string, directory: string): string {
+  const prefix = directory.startsWith("/") ? directory.slice(1) : directory;
+  if (prefix && title.startsWith(`${prefix}/`)) {
+    return title.slice(prefix.length + 1);
+  }
+  return title;
+}
+
+export function extractToolEntries(parts: Part[], directory: string): ConversationMessage[] {
   const results: ConversationMessage[] = [];
   for (const part of parts) {
     if (part.type === "tool" && part.state.status === "completed") {
-      const title = resolveToolTitle(part.state.title, part.state.input);
+      let title = resolveToolTitle(part.state.title, part.state.input);
+      title = stripDirectoryPrefix(title, directory);
       results.push({ role: "tool", content: formatToolContent(part.tool, title) });
     }
   }

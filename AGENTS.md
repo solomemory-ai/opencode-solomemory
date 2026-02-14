@@ -103,20 +103,20 @@ Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/g
 
 ## MEMORY SCOPING
 
-| Scope       | Tag Source                                                                 | Example             |
-| ----------- | -------------------------------------------------------------------------- | ------------------- |
-| User        | `user` (hardcoded)                                                         | Cross-project prefs |
-| Project     | Workspace dir hash (sha256, full 64 chars)                                 | `proj_<sha256>`     |
-| Repo        | Git remote URL hash (sha256, full 64 chars)                                | `repo_<sha256>`     |
-| Branch      | Git branch name (sanitized, NOT hashed)                                    | `branch_feat_auth`  |
-| Language    | `linguist-js` detection + heuristic fallback                               | `lang_typescript`   |
-| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `fw_nextjs`         |
-| Org         | Git remote owner (lowercase)                                               | `org_mycompany`     |
-| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `pkgmgr_bun`        |
-| OS          | `os.platform()`                                                            | `os_linux`          |
-| Machine     | Hostname hash (sha256, full 64 chars)                                      | `machine_<sha256>`  |
-| Workspace   | Monorepo workspace name (sanitized)                                        | `workspace_api`     |
-| Platform    | Config `platformIdentifier`                                                | `plat_opencode`     |
+| Scope       | Tag Source                                                                 | Example                          |
+| ----------- | -------------------------------------------------------------------------- | -------------------------------- |
+| User        | `user` (hardcoded)                                                         | Cross-project prefs              |
+| Project     | Workspace dir hash (sha256, full 64 chars)                                 | `proj_<sha256>`                  |
+| Repo        | Git remote URL hash (sha256, full 64 chars)                                | `repo_<sha256>`                  |
+| Branch      | Git branch name (sanitized, NOT hashed)                                    | `branch_feat_auth`               |
+| Language    | `linguist-js` detection + heuristic fallback (multi-tag, all detected)     | `lang_python`, `lang_typescript` |
+| Framework   | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb                         | `fw_nextjs`                      |
+| Org         | Git remote owner (lowercase)                                               | `org_mycompany`                  |
+| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems) | `pkgmgr_bun`                     |
+| OS          | `os.platform()`                                                            | `os_linux`                       |
+| Machine     | Hostname hash (sha256, full 64 chars)                                      | `machine_<sha256>`               |
+| Workspace   | Monorepo workspace name (sanitized)                                        | `workspace_api`                  |
+| Platform    | Config `platformIdentifier`                                                | `plat_opencode`                  |
 
 ## CONFIG RESOLUTION ORDER
 
@@ -170,3 +170,4 @@ bun dev                  # tsc --watch
 - **Synthetic message filtering**: OpenCode injects `"Continue if you have next steps..."` user messages during auto-compaction — these are filtered out by `isSyntheticUserMessage` in `extractValidMessages`
 - **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
 - **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
+- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata includes both `language` (primary, backward compat) and `languages` (comma-separated list of all detected)
