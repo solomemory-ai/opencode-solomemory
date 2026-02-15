@@ -13,12 +13,12 @@ const SEPARATOR_WIDTH = 50;
 
 declare const PKG_VERSION: string;
 
-function getPluginTag(): string {
-  return typeof PKG_VERSION === "string" && PKG_VERSION.includes("-dev.") ? "dev" : "latest";
+function isDev(): boolean {
+  return typeof PKG_VERSION === "string" && PKG_VERSION.includes("-dev.");
 }
 
 function getPluginName(): string {
-  return `oc-solomemory@${getPluginTag()}`;
+  return isDev() ? "oc-solomemory-dev@latest" : "oc-solomemory@latest";
 }
 
 interface OpencodeConfig {
