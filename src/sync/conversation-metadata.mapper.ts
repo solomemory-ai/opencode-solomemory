@@ -46,10 +46,8 @@ export async function buildConversationMetadata(
   const gitRoot = getGitRepoRoot(directory);
   const workspace = getWorkspaceInfo(directory, gitRoot);
 
-  const [languages, frameworks] = await Promise.all([
-    detectLanguages(directory),
-    detectFrameworks(directory),
-  ]);
+  const languages = detectLanguages(directory);
+  const detectedFrameworks = await detectFrameworks(directory);
 
   const gitRemote = gitRoot ? getGitRemoteOrigin(directory) : null;
   const { owner: repoOwner, name: repoName } = parseRepoOwnerAndName(gitRemote);
@@ -77,6 +75,6 @@ export async function buildConversationMetadata(
     nodeVersion: getNodeVersion(),
     languages: languages.map((l) => l.replaceAll(/[^a-zA-Z0-9_-]/g, "_")),
     packageManagers: detectPackageManagers(directory),
-    frameworks,
+    frameworks: detectedFrameworks,
   });
 }

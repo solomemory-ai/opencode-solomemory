@@ -139,7 +139,7 @@ function handleChatMessage(
 interface PluginContext {
   readonly ctx: PluginInput;
   readonly directory: string;
-  readonly tags: Tags;
+  tags: Tags | null;
 }
 
 function cleanupDeletedSession(sessionId: string): void {
@@ -149,13 +149,22 @@ function cleanupDeletedSession(sessionId: string): void {
   log("event: cleaned up session state", { sessionID: sessionId });
 }
 
+async function ensureTags(context: PluginContext): Promise<Tags> {
+  if (context.tags !== null) return context.tags;
+  const tags = await getTags(context.directory);
+  context.tags = tags;
+  log("lazy-loaded tags", { tags });
+  return tags;
+}
+
 async function handleCompactedEvent(context: PluginContext, sessionID: string): Promise<void> {
   try {
+    const tags = await ensureTags(context);
     await handleSessionCompacted({
       sessionID,
       ctx: context.ctx,
       directory: context.directory,
-      tags: context.tags,
+      tags,
     });
   } catch (error) {
     log("event: session compacted error", {
@@ -168,11 +177,12 @@ async function handleCompactedEvent(context: PluginContext, sessionID: string): 
 
 async function handleIdleEvent(context: PluginContext, sessionID: string): Promise<void> {
   try {
+    const tags = await ensureTags(context);
     await handleSessionIdle({
       sessionID,
       ctx: context.ctx,
       directory: context.directory,
-      tags: context.tags,
+      tags,
     });
   } catch (error) {
     log("event: conversation sync error", {
@@ -211,15 +221,13 @@ interface InitResult {
   pluginContext: PluginContext;
 }
 
-async function initPlugin(ctx: PluginInput): Promise<InitResult> {
+function initPlugin(ctx: PluginInput): InitResult {
   const version = typeof PKG_VERSION === "string" ? PKG_VERSION : "unknown";
   const { directory } = ctx;
-  const tags = await getTags(directory);
   const projectScope = resolveProjectScope(directory);
 
   log(`oc-solomemory v${version}`, {
     directory,
-    tags,
     projectScope,
     configured: isConfigured(),
   });
@@ -232,11 +240,12 @@ async function initPlugin(ctx: PluginInput): Promise<InitResult> {
     log("Plugin disabled - SOLOMEMORY_API_KEY not set");
   }
 
-  return { projectScope, pluginContext: { ctx, directory, tags } };
+  return { projectScope, pluginContext: { ctx, directory, tags: null } };
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
-  const { projectScope, pluginContext } = await initPlugin(ctx);
+  const { projectScope, pluginContext } = initPlugin(ctx);
 
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention

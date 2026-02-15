@@ -90,8 +90,8 @@ export function getWorkspaceTag(directory: string): string | null {
   return `workspace_${sanitized}`;
 }
 
-export async function getLanguageTags(directory: string): Promise<string[]> {
-  const languages = await detectLanguages(directory);
+export function getLanguageTags(directory: string): string[] {
+  const languages = detectLanguages(directory);
   return languages.map((lang) => `lang_${lang.replaceAll(/[^a-zA-Z0-9_-]/g, "_")}`);
 }
 
@@ -138,10 +138,8 @@ export interface Tags {
 }
 
 export async function getTags(directory: string): Promise<Tags> {
-  const [languages, frameworks] = await Promise.all([
-    getLanguageTags(directory),
-    getFrameworkTags(directory),
-  ]);
+  const languages = getLanguageTags(directory);
+  const frameworkTags = await getFrameworkTags(directory);
 
   return {
     project: getProjectTag(directory),
@@ -154,6 +152,6 @@ export async function getTags(directory: string): Promise<Tags> {
     org: getOrgTag(directory),
     packageManagers: getPackageManagerTags(directory),
     os: getOsTag(),
-    frameworks,
+    frameworks: frameworkTags,
   };
 }

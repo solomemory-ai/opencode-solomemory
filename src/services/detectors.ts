@@ -7,52 +7,145 @@ import {
   detectFrameworks as vercelDetectFrameworks,
   LocalFileSystemDetector,
 } from "@vercel/fs-detectors";
-import linguist from "linguist-js";
+
+import { execGitCommand } from "./git.js";
 
 // ============================================================================
 // LANGUAGE DETECTION
 // ============================================================================
 
-/**
- * Detect all programming languages in a project directory, ordered by byte count.
- * Uses linguist-js (GitHub Linguist data, 600+ languages) with quick mode
- * for performance. Falls back to config-file heuristics if linguist fails.
- */
-export async function detectLanguages(directory: string): Promise<string[]> {
-  try {
-    const result = await linguist(directory, {
-      quick: true,
-      keepVendored: false,
-      categories: ["programming"],
-    });
+/** Map of file extensions to language names */
+const EXTENSION_LANGUAGE_MAP: ReadonlyMap<string, string> = new Map([
+  // JavaScript / TypeScript
+  [".ts", "typescript"],
+  [".tsx", "typescript"],
+  [".mts", "typescript"],
+  [".cts", "typescript"],
+  [".js", "javascript"],
+  [".jsx", "javascript"],
+  [".mjs", "javascript"],
+  [".cjs", "javascript"],
+  // Web markup & styling
+  [".html", "html"],
+  [".htm", "html"],
+  [".css", "css"],
+  [".scss", "scss"],
+  [".sass", "sass"],
+  [".less", "less"],
+  // Frontend frameworks (component files)
+  [".vue", "vue"],
+  [".svelte", "svelte"],
+  [".astro", "astro"],
+  // Systems / compiled
+  [".rs", "rust"],
+  [".go", "go"],
+  [".c", "c"],
+  [".h", "c"],
+  [".cpp", "cpp"],
+  [".cc", "cpp"],
+  [".cxx", "cpp"],
+  [".hpp", "cpp"],
+  [".zig", "zig"],
+  [".nim", "nim"],
+  [".cr", "crystal"],
+  [".v", "vlang"],
+  // JVM
+  [".java", "java"],
+  [".kt", "kotlin"],
+  [".kts", "kotlin"],
+  [".scala", "scala"],
+  [".clj", "clojure"],
+  [".cljs", "clojure"],
+  [".cljc", "clojure"],
+  [".groovy", "groovy"],
+  [".gradle", "groovy"],
+  // .NET
+  [".cs", "csharp"],
+  [".fs", "fsharp"],
+  [".fsx", "fsharp"],
+  [".vb", "visualbasic"],
+  // Scripting
+  [".py", "python"],
+  [".pyi", "python"],
+  [".rb", "ruby"],
+  [".php", "php"],
+  [".pl", "perl"],
+  [".pm", "perl"],
+  [".lua", "lua"],
+  [".sh", "shell"],
+  [".bash", "shell"],
+  [".zsh", "shell"],
+  [".fish", "shell"],
+  [".ps1", "powershell"],
+  [".psm1", "powershell"],
+  // Apple
+  [".swift", "swift"],
+  [".m", "objectivec"],
+  [".mm", "objectivec"],
+  // Functional
+  [".ex", "elixir"],
+  [".exs", "elixir"],
+  [".erl", "erlang"],
+  [".hrl", "erlang"],
+  [".hs", "haskell"],
+  [".lhs", "haskell"],
+  [".ml", "ocaml"],
+  [".mli", "ocaml"],
+  [".gleam", "gleam"],
+  [".elm", "elm"],
+  // Data science / math
+  [".r", "r"],
+  [".R", "r"],
+  [".jl", "julia"],
+  // Mobile
+  [".dart", "dart"],
+  // Data & query
+  [".sql", "sql"],
+  [".graphql", "graphql"],
+  [".gql", "graphql"],
+  [".proto", "protobuf"],
+  // Infrastructure
+  [".tf", "terraform"],
+  [".hcl", "hcl"],
+  [".nix", "nix"],
+  [".dhall", "dhall"],
+  // Markup & docs
+  [".md", "markdown"],
+  [".mdx", "mdx"],
+  [".tex", "latex"],
+  [".typ", "typst"],
+  // Blockchain
+  [".sol", "solidity"],
+  [".move", "move"],
+  // Config / data (low-weight, but useful for project characterization)
+  [".yaml", "yaml"],
+  [".yml", "yaml"],
+  [".toml", "toml"],
+  [".xml", "xml"],
+  [".json", "json"],
+  [".jsonc", "json"],
+]);
 
-    const sorted = Object.entries(result.languages.results)
-      .filter(([, data]) => data.type === "programming")
-      .toSorted(([, a], [, b]) => b.bytes - a.bytes);
+/** Detect languages via `git ls-files` + extension counting. Fast, respects .gitignore. */
+function detectLanguagesFromGit(directory: string): string[] {
+  const output = execGitCommand("git ls-files", directory);
+  if (!output) return [];
 
-    if (sorted.length > 0) {
-      return sorted.map(([name]) => name.toLowerCase());
+  const counts = new Map<string, number>();
+  for (const file of output.split("\n")) {
+    const ext = path.extname(file).toLowerCase();
+    const lang = EXTENSION_LANGUAGE_MAP.get(ext);
+    if (lang !== undefined) {
+      counts.set(lang, (counts.get(lang) ?? 0) + 1);
     }
-  } catch {
-    // linguist-js may fail on some directories — fall through to heuristic
   }
 
-  const fallback = detectLanguageFallback(directory);
-  return fallback ? [fallback] : [];
+  return [...counts.entries()].toSorted(([, a], [, b]) => b - a).map(([lang]) => lang);
 }
 
-/**
- * Detect the primary programming language of a project directory.
- * Convenience wrapper over detectLanguages() for single-value consumers.
- */
-export async function detectLanguage(directory: string): Promise<string | null> {
-  const languages = await detectLanguages(directory);
-  return languages[0] ?? null;
-}
-
-/** Fast config-file heuristic fallback for language detection */
-function detectLanguageFallback(directory: string): string | null {
-  const indicators: [string, string][] = [
+/** Config-file heuristic fallback when not in a git repo */
+function detectLanguagesFromFiles(directory: string): string[] {
+  const indicators: readonly (readonly [string, string])[] = [
     ["tsconfig.json", "typescript"],
     ["package.json", "javascript"],
     ["Cargo.toml", "rust"],
@@ -67,12 +160,33 @@ function detectLanguageFallback(directory: string): string | null {
     ["pubspec.yaml", "dart"],
   ];
 
+  const found: string[] = [];
   for (const [file, lang] of indicators) {
-    if (existsSync(path.join(directory, file))) {
-      return lang;
+    if (existsSync(path.join(directory, file)) && !found.includes(lang)) {
+      found.push(lang);
     }
   }
-  return null;
+  return found;
+}
+
+/**
+ * Detect all programming languages in a project directory, ordered by file count.
+ * Uses `git ls-files` + extension mapping (fast, respects .gitignore).
+ * Falls back to config-file heuristics if not in a git repo.
+ */
+export function detectLanguages(directory: string): string[] {
+  const gitResult = detectLanguagesFromGit(directory);
+  if (gitResult.length > 0) return gitResult;
+  return detectLanguagesFromFiles(directory);
+}
+
+/**
+ * Detect the primary programming language of a project directory.
+ * Convenience wrapper over detectLanguages() for single-value consumers.
+ */
+export function detectLanguage(directory: string): string | null {
+  const languages = detectLanguages(directory);
+  return languages[0] ?? null;
 }
 
 // ============================================================================
