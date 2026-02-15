@@ -1,194 +1,141 @@
 # OPENCODE-SOLOMEMORY PLUGIN
 
-**Generated:** 2026-02-14
-
-## OVERVIEW
-
-OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile + relevant memories + project topics into context. Bun runtime, TypeScript strict.
-
-## STRUCTURE
-
-```
-opencode-solomemory/
-├── src/
-│   ├── index.ts           # Entry: hooks registration, context injection, session mgmt
-│   ├── tools.ts           # Tool handler: solomemory tool modes (search, profile, list, projects, help)
-│   ├── sync.ts            # Facade re-export — delegates to sync/ submodules
-│   ├── sync/
-│   │   ├── session-event.handlers.ts     # session.idle + session.compacted handlers
-│   │   ├── conversation-ingest.service.ts # Build IngestPayload, optional dump, call API
-│   │   ├── conversation-metadata.mapper.ts # Extract metadata from session/tags
-│   │   ├── session-message.validation.ts  # Message validation + filtering
-│   │   ├── sync-state.store.ts            # sessionSyncState Map
-│   │   └── sync.types.ts                  # ConversationSyncState, SessionIdleInput
-│   ├── state.ts           # Shared state: subagentSessions Set
-│   ├── config.ts          # Config resolution via Proxy (env > jsonc > credentials > defaults)
-│   ├── cli.ts             # CLI entry (delegates to cli/)
-│   ├── cli/
-│   │   ├── index.ts       # CLI command router (install, help)
-│   │   ├── install.ts     # Install command: config patching, slash commands, API key save
-│   │   └── templates.ts   # /solomemory-init and /solomemory-login slash command templates
-│   ├── types/
-│   │   └── index.ts       # Shared interfaces: Result<T,E>, Memory, ConversationMessage
-│   └── services/          # Service modules (see services/AGENTS.md)
-├── docs/
-│   ├── CONFIG.md          # Full config reference
-│   ├── CONTRIBUTING.md    # Contributing guide
-│   └── RELEASE.md         # Release process
-├── scripts/
-│   └── release.sh         # Version bump + publish (patch|minor|major)
-└── .github/workflows/
-    └── publish.yml        # Dual-track: dev builds on v1.0 push, releases on v* tags
-```
-
-## WHERE TO LOOK
-
-| Task                  | Location                                  | Notes                                             |
-| --------------------- | ----------------------------------------- | ------------------------------------------------- |
-| Add hook              | `src/index.ts`                            | Register in plugin hooks object + opencode config |
-| Add tool mode         | `src/tools.ts`                            | Switch case in `executeTool()` handler            |
-| Modify sync behavior  | `src/sync/session-event.handlers.ts`      | `handleSessionIdle()`, `handleSessionCompacted()` |
-| Modify ingest payload | `src/sync/conversation-ingest.service.ts` | Builds payload, optional dump, calls API          |
-| Payload dump feature  | `src/services/payload-dump.ts`            | Fire-and-forget JSON dump, gated by config        |
-| Add API endpoint      | `src/services/client.ts`                  | New method + type in `client-types.ts`            |
-| Change context format | `src/services/context.ts`                 | `formatContextForPrompt()`                        |
-| Add tag type          | `src/services/tags.ts`                    | New async getter + add to `getTags()` return      |
-| Change config option  | `src/config.ts` + `src/types/index.ts`    | Add to RuntimeConfig, update defaults             |
-| Add CLI command       | `src/cli/index.ts`                        | New case in command router                        |
-| Workspace detection   | `src/services/workspace.ts`               | Walk-up directory search for project markers      |
-
-## CODE MAP
-
-| Symbol                      | Type           | Location                                   | Role                                                                                                      |
-| --------------------------- | -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `SolomemoryPlugin`          | const (Plugin) | `src/index.ts`                             | Default export, plugin entry                                                                              |
-| `executeTool`               | fn             | `src/tools.ts`                             | Tool mode dispatcher (search, profile, list, projects, help). Takes `ProjectScope` for project filtering  |
-| `handleSessionIdle`         | fn             | `src/sync/session-event.handlers.ts`       | Incremental sync on idle: uses compaction anchor if set, filters synthetic msgs                           |
-| `handleSessionCompacted`    | fn             | `src/sync/session-event.handlers.ts`       | Sets compaction anchor on sync state (defers ingest to next idle)                                         |
-| `sessionSyncState`          | Map            | `src/sync/sync-state.store.ts`             | Incremental sync tracking per session                                                                     |
-| `fetchSessionMessages`      | fn             | `src/sync/conversation-ingest.service.ts`  | Fetch session messages + init sync state on reload                                                        |
-| `handleNoMessages`          | fn             | `src/sync/conversation-ingest.service.ts`  | Update sync state when no valid messages to sync                                                          |
-| `ingestAndLogResult`        | fn             | `src/sync/conversation-ingest.service.ts`  | Build payload, optional dump, call API, log result                                                        |
-| `buildConversationMetadata` | fn             | `src/sync/conversation-metadata.mapper.ts` | Assembles flat metadata record with all named fields (no tags array) via direct helper calls              |
-| `extractValidMessages`      | fn             | `src/sync/session-message.validation.ts`   | Incremental extraction from anchor, filters summaries + synthetic, emits thinking + tool entries          |
-| `findLastUserMessageIndex`  | fn             | `src/sync/session-message.validation.ts`   | Scans backward for last user message; used to initialize sync state on session reload                     |
-| `extractContentFromParts`   | fn             | `src/services/messages.ts`                 | Extracts text content from message parts (text-only, excludes reasoning)                                  |
-| `extractReasoningText`      | fn             | `src/services/messages.ts`                 | Extracts reasoning/thinking text from `ReasoningPart` entries (separate from text content)                |
-| `extractToolEntries`        | fn             | `src/services/messages.ts`                 | Extracts compact tool entries from completed `ToolPart`s — `{ role: "tool", content: "<tool>: <title>" }` |
-| `initSyncState`             | fn             | `src/sync/sync-state.store.ts`             | Creates sync state for session; accepts optional `initialIndex` for session reload                        |
-| `dumpIngestPayload`         | fn             | `src/services/payload-dump.ts`             | Write payload JSON to disk (fire-and-forget)                                                              |
-| `subagentSessions`          | Set            | `src/state.ts`                             | Tracks subagent session IDs (skip sync)                                                                   |
-| `solomemoryClient`          | singleton      | `src/services/client.ts`                   | All API communication                                                                                     |
-| `CONFIG`                    | Proxy          | `src/config.ts`                            | Lazy-init config, accessed everywhere                                                                     |
-| `getTags`                   | async fn       | `src/services/tags.ts`                     | Tag generation for ingest metadata enrichment (not used for query filtering)                              |
-| `formatContextForPrompt`    | fn             | `src/services/context.ts`                  | Profile + user memories + project topics → system prompt injection                                        |
-| `injectedSessions`          | Set            | `src/index.ts`                             | Prevents double-injection per session                                                                     |
-| `loadSubagentNames`         | async fn       | `src/index.ts`                             | Fetches agent list from OpenCode SDK for subagent detection                                               |
-| `isSubagentAgent`           | fn             | `src/index.ts`                             | Checks if session belongs to a subagent by name                                                           |
-| `resolveProjectScope`       | fn             | `src/index.ts`, `src/tools.ts`             | Resolves `ProjectScope` from directory via `getGitRemoteOrigin` (git→repository, non-git→directory)       |
-| `ProjectScope`              | interface      | `src/types/index.ts`                       | `{ field: "repository" \| "directory"; value: string }` — used by all query methods for project filtering |
-
-## HOOKS
-
-| Hook                      | Trigger                        | Action                                                                                                    |
-| ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `chat.message`            | First user message per session | Parallel fetch profile + user memories + project topics → inject as synthetic Part with CTA               |
-| `event:session.idle`      | Session idle                   | Incremental sync: extract from compaction anchor (or lastSynced), filter synthetic + summary msgs, ingest |
-| `event:session.compacted` | Session compacted              | Set compaction anchor on sync state to freeze extraction start point; defer ingest to next idle event     |
-| `event:session.deleted`   | Session deleted                | Clean up `sessionSyncState` + `injectedSessions` + `subagentSessions`                                     |
-
-## TOOL
-
-`solomemory` tool with modes: `search` (query memories), `profile` (show user profile), `list` (list memories by scope), `projects` (list known projects), `help` (usage info).
-
-Tool arguments: `mode` (required), `query` (for search), `scope` (user/project/global), `limit`, `path` (cross-project search by directory — resolves to `ProjectScope` via git remote detection), `containerTag` (deprecated, ignored — legacy hashed tag argument).
-
-## MEMORY SCOPING
-
-### Query Scoping (read path — `ProjectScope`)
-
-Query methods (`searchMemories`, `listMemories`, `getTopics`) use `ProjectScope` to filter by named metadata fields:
-
-| Scope   | Filter                                               | Example value                              |
-| ------- | ---------------------------------------------------- | ------------------------------------------ |
-| User    | Dedicated endpoint (no project filter)               | —                                          |
-| Project | `{ field: "repository", value: "<git remote URL>" }` | `https://github.com/org/repo.git`          |
-| Project | `{ field: "directory", value: "<absolute path>" }`   | `/home/user/my-project` (non-git fallback) |
-| Global  | No filter (all memories)                             | —                                          |
-
-`ProjectScope` is resolved via `resolveProjectScope()` in `index.ts` and `tools.ts` using `getGitRemoteOrigin()` — git repos use `repository`, non-git dirs fall back to `directory`.
-
-### Ingest Metadata (write path — `tags.ts`)
-
-Ingest sends named metadata fields. Server derives routing tags from these. `tags.ts` generators are used only for ingest metadata enrichment (not query filtering).
-
-| Field       | Source                                                                         | Example metadata value         |
-| ----------- | ------------------------------------------------------------------------------ | ------------------------------ |
-| Platform    | Config `platformIdentifier`                                                    | `opencode`                     |
-| Repository  | Git remote URL (raw, not hashed)                                               | `https://github.com/org/repo`  |
-| Directory   | `process.cwd()`                                                                | `/home/user/my-project`        |
-| Branch      | Git branch name                                                                | `feat/auth`                    |
-| Languages   | `linguist-js` detection + heuristic fallback (multi-value, all detected)       | `["typescript", "javascript"]` |
-| Frameworks  | `@vercel/fs-detectors` (68 fw) + Django/Laravel fb (multi-value, all detected) | `["nextjs", "vite"]`           |
-| Org         | Git remote owner (lowercase)                                                   | `mycompany`                    |
-| Package Mgr | Two-tier: 41 lockfiles + 8 manifest fallbacks (48 entries, 30+ ecosystems)     | `bun`                          |
-| OS          | `os.platform()`                                                                | `linux`                        |
-| Machine     | Hostname hash (sha256, full 64 chars)                                          | `<sha256>`                     |
-| Workspace   | Monorepo workspace name (sanitized)                                            | `api`                          |
-
-## CONFIG RESOLUTION ORDER
-
-`SOLOMEMORY_*` env vars > `~/.config/opencode/solomemory.jsonc` > `~/.config/opencode/credentials.json` > defaults
-
-Key defaults: `maxMemories=5`, `maxProjectMemories=10`, `maxProfileItems=5`, `injectProfile=true`, `platformIdentifier="opencode"`, `autoSyncConversations=true`, `dumpIngestPayloads=false`, `dumpDir=""` (falls back to `~/.solomemory-dumps/`)
-
-## CONVENTIONS
-
-- TypeScript strict + `noUncheckedIndexedAccess` + `verbatimModuleSyntax`
-- Bun runtime (not Node), ESNext target, bundler module resolution
-- ESLint strict: max-lines:300, max-lines-per-function:50, max-params:3, max-statements:15, complexity:10, max-depth:3
-- Discriminated union results from API: `{ success: true, ... } | { success: false, error }`
-- Privacy: `<private>` tags redacted before sending to API
-- Auth: Bearer token, credentials at `~/.solomemory-opencode/credentials.json` (0o600)
-- Config files at `~/.config/opencode/`
-- Git operations via `execSync` (synchronous, no async git)
-- Logging: async batched file logger to `~/.opencode-solomemory.log`
-- Dual build targets: `src/index.ts` (plugin) + `src/cli.ts` (CLI binary)
-
-## ANTI-PATTERNS
-
-- **No `as any` / `@ts-ignore` / `@ts-expect-error`**
-- **No auto git commits** — user controls version history
-- **Never send user identity from client** — server derives it from auth token
-- **`isUserOrAssistantMessage` is @deprecated** — use `isNonSyntheticMessage` instead
-- Branch/workspace names are intentionally NOT hashed (readability over privacy)
-- **Never sync subagent sessions** — tracked via `subagentSessions` Set in `state.ts`
+OpenCode AI plugin. Syncs conversations to solomemory-api, injects user profile + relevant memories + project topics into context. Bun runtime, TypeScript strict. No automated tests.
 
 ## COMMANDS
 
 ```bash
-bun install              # Install deps
-bun run build            # bun build + tsc declarations
-bun run typecheck        # tsc --noEmit (no tests exist)
-bun dev                  # tsc --watch
+bun install                # Install dependencies
+bun run build              # Bundle plugin + CLI, emit declarations
+bun run typecheck          # tsc --noEmit (primary verification)
+bun run check              # Full gate: eslint + prettier + typecheck + build
+bun run lint               # ESLint only
+bun run lint:fix           # ESLint autofix
+bun run format             # Prettier write
+bun run format:check       # Prettier check
+bun dev                    # tsc --watch
 ```
 
-## NOTES
+No test framework exists. Verify changes with `bun run check`. There are no tests to run.
 
-- **No automated tests** — no jest/vitest, manual QA only
-- CLI has only `install` and `help` commands (no login/logout/status)
-- CLI install command modifies opencode config AND creates slash commands (`/solomemory-init`, `/solomemory-login`)
-- Release: `scripts/release.sh {patch|minor|major}` → git tag → GitHub Actions publishes to npm
-- CI dual-track: dev builds on push to `v1.0` branch, releases on `v*` tags
-- JSONC parser is hand-rolled state machine (handles comments, trailing commas, escaped quotes)
-- Context injection includes CTA telling the agent about the `solomemory` tool
-- **Thinking blocks**: Assistant reasoning parts (`type: "reasoning"`) are extracted as separate `{ role: "thinking" }` message entries, distinct from text content. `extractContentFromParts` handles text-only, `extractReasoningText` handles reasoning-only
-- **Session reload**: When plugin starts on an existing session (in-memory state lost), `findLastUserMessageIndex` scans backward to find the last user message and initializes sync state from there — prevents replaying entire session history
-- **Compaction deferral**: `session.compacted` sets a `compactionAnchorIndex` on sync state instead of ingesting; the next `session.idle` uses the anchor as extraction start point
-- **Synthetic message filtering**: OpenCode injects `"Continue if you have next steps..."` user messages during auto-compaction — these are filtered out by `isSyntheticUserMessage` in `extractValidMessages`
-- **Message output format**: Each ingest contains `{ role: "user" | "assistant" | "thinking" | "tool", content: string }[]` — thinking entries precede assistant text, tool entries follow (format: `"<tool>: <title>"`)
-- **Tool entries**: Completed `ToolPart`s from OpenCode SDK are extracted as `{ role: "tool" }` entries. Only `status: "completed"` tools are included. Uses SDK-native `part.tool` (name) and `part.state.title` (description) — no parsing
-- **Multi-language detection**: `detectLanguages()` returns all programming languages sorted by byte count (via linguist-js). `Tags.languages` is `string[]`, emitting multiple `lang_*` container tags. Ingest metadata `languages` is a `string[]` (e.g. `["typescript", "javascript"]`)
-- **Multi-framework detection**: `detectFrameworks()` uses `@vercel/fs-detectors` plural API to return all matched frameworks + Django/Laravel fallback. `Tags.frameworks` is `string[]`, emitting multiple `fw_*` container tags. Ingest metadata `frameworks` is a `string[]` (e.g. `["nextjs", "vite"]`)
-- **No tags in ingest payload**: The ingest metadata contains only named raw values (repository, branch, machine, frameworks, etc.) — no `tags` array. Server derives routing tags from these named fields
-- **Query uses named metadata fields**: Query methods (`searchMemories`, `listMemories`, `getTopics`) filter by `ProjectScope` — `{ field: "repository" | "directory", value: "<raw value>" }`. Tags (`getTags`) are used only for ingest metadata enrichment, not for query filtering
+## CODE STYLE
+
+### TypeScript Strictness
+
+- `strict: true`, `noUncheckedIndexedAccess: true`, `verbatimModuleSyntax: true`
+- Every index access returns `T | undefined` -- always handle the undefined case
+- Type assertions (`as`) are **banned** (`assertionStyle: "never"`) -- use type guards instead
+- `no-explicit-any: error` -- use `unknown` + narrowing
+- `no-unsafe-assignment/call/member-access/return: error`
+- `explicit-function-return-type: error` -- all functions need explicit return types
+- `strict-boolean-expressions: error` (allowString: true, allowNumber: false)
+- `prefer-readonly: error` -- mark fields `readonly` when not reassigned
+
+### Imports
+
+- `verbatimModuleSyntax` requires explicit `type` keyword for type-only imports:
+  ```typescript
+  import type { Plugin } from "@opencode-ai/plugin";
+  import { tool } from "@opencode-ai/plugin";
+  ```
+- All local imports use `.js` extension: `import { CONFIG } from "./config.js";`
+- Import order enforced by `simple-import-sort`: node builtins > external > internal
+- Barrel re-exports for facade modules (`sync.ts`, `services/client.ts`)
+
+### Formatting (Prettier)
+
+- Double quotes, semicolons, trailing commas (`"all"`)
+- Print width: 100, tab width: 2
+- Pre-commit hook runs `lint-staged` (ESLint on `src/**/*.ts`, Prettier on config/docs)
+
+### Naming Conventions
+
+| Symbol           | Convention                            | Examples                                           |
+| ---------------- | ------------------------------------- | -------------------------------------------------- |
+| Functions        | `camelCase`                           | `handleSessionIdle`, `extractValidMessages`        |
+| Variables        | `camelCase` or `UPPER_CASE`           | `syncState`, `MAX_RETRIES`, `TIMEOUT_MS`           |
+| Exported consts  | `camelCase`/`UPPER_CASE`/`PascalCase` | `solomemoryClient`, `CONFIG`, `SolomemoryPlugin`   |
+| Types/Interfaces | `PascalCase` (no `I` prefix)          | `ProjectScope`, `ConversationSyncState`            |
+| Files            | `kebab-case.ts`                       | `session-event.handlers.ts`, `sync-state.store.ts` |
+
+File suffixes: `.handlers.ts`, `.service.ts`, `.methods.ts`, `.mapper.ts`, `.validation.ts`, `.store.ts`, `.types.ts`, `.typeguards.ts`
+
+### Complexity Limits (ESLint enforced)
+
+- `max-lines: 300`, `max-lines-per-function: 50`, `max-params: 3`
+- `max-statements: 15`, `complexity: 10`, `max-depth: 3`, `max-nested-callbacks: 3`
+- `no-magic-numbers` (only `-1, 0, 1, 2` inline; use named constants with `_` separators: `10_000`)
+
+### Error Handling
+
+Never throw from API methods. Use discriminated union results:
+
+```typescript
+type SearchResult =
+  | { success: true; results: Item[]; total: number }
+  | { success: false; error: string; results: []; total: 0 };
+```
+
+Use failure factory helpers (`searchFailure(msg)`), runtime type guards for API responses, and `toErrorMessage(error)` for safe error extraction. `reportError()` is always fire-and-forget. Git operations return `string | null` (null on failure).
+
+### Anti-Patterns to Avoid
+
+- **No `as any` / `as Type` / `@ts-ignore` / `@ts-expect-error`**
+- **No auto git commits** -- user controls version history
+- **Never send user identity from client** -- server derives from auth token
+- **Never sync subagent sessions** -- tracked via `subagentSessions` Set
+- `eslint-disable` comments only with specific rule names, used very sparingly
+
+## ARCHITECTURE
+
+### Structure
+
+```
+src/
+  index.ts              # Plugin entry: hooks, context injection, session management
+  tools.ts              # Tool handler: search, profile, list, projects, help modes
+  sync.ts               # Facade re-export to sync/ submodules
+  config.ts             # Config via Proxy (env > jsonc > credentials > defaults)
+  state.ts              # Shared state: subagentSessions Set
+  cli.ts                # CLI entry -> cli/ submodules
+  types/index.ts        # Shared interfaces: Result<T,E>, Memory, ProjectScope
+  sync/                 # Conversation sync pipeline
+    session-event.handlers.ts, conversation-ingest.service.ts,
+    conversation-metadata.mapper.ts, session-message.validation.ts,
+    sync-state.store.ts, sync.types.ts
+  services/             # Service layer (see services/AGENTS.md)
+    client/, context.ts, tags.ts, git.ts, detectors.ts, workspace.ts,
+    messages.ts, auth.ts, logger.ts, error-reporter.ts, payload-dump.ts
+  cli/                  # CLI commands
+    index.ts, install.ts, templates.ts
+```
+
+### Key Patterns
+
+- **Config**: `CONFIG` proxy with lazy init; resolution: env vars > JSONC file > credentials > defaults
+- **API client**: `solomemoryClient` singleton; methods use `postWithRetry` with exponential backoff
+- **Hooks**: `chat.message` (context injection), `session.idle` (incremental sync), `session.compacted` (anchor), `session.deleted` (cleanup)
+- **Project scoping**: `resolveProjectScope()` returns `{ field: "repository"|"directory", value }` via git remote detection
+- **Ingest metadata**: Named fields (repository, branch, languages, frameworks, etc.) -- no tags array; server derives routing tags
+
+### Where to Look
+
+| Task                  | Location                                   |
+| --------------------- | ------------------------------------------ |
+| Add hook              | `src/index.ts`                             |
+| Add tool mode         | `src/tools.ts`                             |
+| Modify sync behavior  | `src/sync/session-event.handlers.ts`       |
+| Modify ingest payload | `src/sync/conversation-ingest.service.ts`  |
+| Add API endpoint      | `src/services/client/` + `client-types.ts` |
+| Change context format | `src/services/context.ts`                  |
+| Change config option  | `src/config.ts` + `src/types/index.ts`     |
+| Add CLI command       | `src/cli/index.ts`                         |
+
+## RUNTIME
+
+- **Bun** (not Node) -- ESNext target, bundler module resolution
+- Dual build targets: `src/index.ts` (plugin) -> `dist/index.js`, `src/cli.ts` -> `dist/cli.js`
+- Git ops via `execSync` (synchronous)
+- Logging: async batched file logger to `~/.opencode-solomemory.log`
+- Auth: Bearer token at `~/.solomemory-opencode/credentials.json` (0o600)
+- Release: `scripts/release.sh {patch|minor|major}` -> git tag -> GitHub Actions -> npm
