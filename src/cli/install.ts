@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { getCredentialsDir, saveCredentials } from "../services/auth.js";
+import { getConfigFile, saveApiKey as saveApiKeyToConfig } from "../config.js";
 import { stripJsoncComments } from "../services/jsonc.js";
 import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.js";
 
@@ -178,8 +178,8 @@ function printApiKeyRequired(): number {
 }
 
 function saveApiKey(apiKey: string): void {
-  saveCredentials(apiKey);
-  console.log(`✓ API key saved to ${getCredentialsDir()}`);
+  saveApiKeyToConfig(apiKey);
+  console.log(`✓ API key saved to ${getConfigFile()}`);
   console.log("\n✓ Setup complete! Restart OpenCode to activate.\n");
 }
 

@@ -1,8 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-
-import { loadCredentials } from "./services/auth.js";
 
 const CONFIG_DIR = path.join(homedir(), ".config", "opencode", "solomemory");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
@@ -60,7 +58,7 @@ let _config: RuntimeConfig | null = null;
 let _initialized = false;
 
 function resolveApiKey(fileConfig: SolomemoryConfig): string | undefined {
-  return process.env.SOLOMEMORY_API_KEY ?? fileConfig.apiKey ?? loadCredentials()?.apiKey;
+  return process.env.SOLOMEMORY_API_KEY ?? fileConfig.apiKey;
 }
 
 function resolveApiUrl(fileConfig: SolomemoryConfig): string {
@@ -172,3 +170,36 @@ const emptyConfig: RuntimeConfig = {
 };
 
 export const CONFIG: RuntimeConfig = new Proxy<RuntimeConfig>(emptyConfig, configHandler);
+
+export function getConfigDir(): string {
+  return CONFIG_DIR;
+}
+
+export function getConfigFile(): string {
+  return CONFIG_FILE;
+}
+
+const JSON_INDENT = 2;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function saveApiKey(apiKey: string): void {
+  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+
+  let existing: Record<string, unknown> = {};
+  if (existsSync(CONFIG_FILE)) {
+    try {
+      const data: unknown = JSON.parse(readFileSync(CONFIG_FILE, "utf8"));
+      if (isRecord(data)) {
+        existing = data;
+      }
+    } catch {
+      // Overwrite corrupt file
+    }
+  }
+
+  existing.apiKey = apiKey;
+  writeFileSync(CONFIG_FILE, JSON.stringify(existing, null, JSON_INDENT), { mode: 0o600 });
+}

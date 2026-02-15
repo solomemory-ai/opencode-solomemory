@@ -2,8 +2,9 @@
 
 Optional. Create `~/.config/opencode/solomemory/config.json` to customize behavior:
 
-```jsonc
+```json
 {
+  "apiKey": "your-api-key",
   "apiUrl": "https://api.solomemory.com",
   "maxMemories": 5,
   "maxProjectMemories": 10,
@@ -12,11 +13,11 @@ Optional. Create `~/.config/opencode/solomemory/config.json` to customize behavi
   "platformIdentifier": "opencode",
   "autoSyncConversations": true,
   "dumpIngestPayloads": false,
-  "dumpDir": "~/.config/opencode/solomemory/dumps/",
+  "dumpDir": "~/.config/opencode/solomemory/dumps/"
 }
 ```
 
-API key is configured during install (`npx oc-solomemory@latest install --api-key=KEY`) and stored separately in `~/.config/opencode/solomemory/credentials.json`.
+API key is configured during install (`npx oc-solomemory@latest install --api-key=KEY`) and stored in `config.json`.
 
 ## Options
 
@@ -41,4 +42,4 @@ All options can be overridden via `SOLOMEMORY_*` env vars (highest priority):
 | `SOLOMEMORY_DUMP_INGEST` | `dumpIngestPayloads` | `SOLOMEMORY_DUMP_INGEST=true`    |
 | `SOLOMEMORY_DUMP_DIR`    | `dumpDir`            | `SOLOMEMORY_DUMP_DIR=~/my-dumps` |
 
-Resolution order: `SOLOMEMORY_*` env vars > `config.json` > `credentials.json` > defaults
+Resolution order: `SOLOMEMORY_*` env vars > `config.json` > defaults

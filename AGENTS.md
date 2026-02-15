@@ -105,7 +105,7 @@ src/
     sync-state.store.ts, sync.types.ts
   services/             # Service layer (see services/AGENTS.md)
     client/, context.ts, tags.ts, git.ts, detectors.ts, workspace.ts,
-    messages.ts, auth.ts, logger.ts, error-reporter.ts, payload-dump.ts
+    messages.ts, logger.ts, error-reporter.ts, payload-dump.ts
   cli/                  # CLI commands
     index.ts, install.ts, templates.ts
 ```
@@ -137,5 +137,5 @@ src/
 - Dual build targets: `src/index.ts` (plugin) -> `dist/index.js`, `src/cli.ts` -> `dist/cli.js`
 - Git ops via `execSync` (synchronous)
 - Logging: async batched file logger to `~/.config/opencode/solomemory/solomemory.log`
-- Auth: Bearer token at `~/.config/opencode/solomemory/credentials.json` (0o600)
+- Auth: Bearer token via `apiKey` field in `~/.config/opencode/solomemory/config.json` (0o600)
 - Release: `scripts/release.sh {patch|minor|major}` -> git tag -> GitHub Actions -> npm
