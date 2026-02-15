@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { homedir } from "node:os";
 import path from "node:path";
 
-const CREDENTIALS_DIR = path.join(homedir(), ".solomemory-opencode");
+const CREDENTIALS_DIR = path.join(homedir(), ".config", "opencode", "solomemory");
 const CREDENTIALS_FILE = path.join(CREDENTIALS_DIR, "credentials.json");
 
 interface Credentials {
