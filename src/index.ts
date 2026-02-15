@@ -103,34 +103,55 @@ interface ChatMessageInput {
   readonly sessionID: string;
   readonly agentName: string | undefined;
   readonly projectScope: ProjectScope;
+  readonly client: PluginInput["client"];
 }
 
-function handleChatMessage(
-  input: ChatMessageInput,
-  output: { message: { id: string }; parts: Part[] },
-): Promise<void> | undefined {
-  const { sessionID, agentName, projectScope } = input;
+async function hasExistingMessages(client: PluginInput["client"], sid: string): Promise<boolean> {
+  try {
+    const res = await client.session.messages({ path: { id: sid }, query: { limit: 1 } });
+    const messages = res.data ?? [];
+    return messages.length > 0;
+  } catch {
+    return false;
+  }
+}
 
-  if (subagentSessions.has(sessionID)) return undefined;
-
+function shouldSkipSession(sessionID: string, agentName: string | undefined): boolean {
+  if (subagentSessions.has(sessionID)) return true;
   if (isSubagentAgent(agentName)) {
     subagentSessions.add(sessionID);
     log("chat.message: skipping subagent session", { sessionID, agentName });
-    return undefined;
+    return true;
   }
+  return false;
+}
+
+async function handleChatMessage(
+  input: ChatMessageInput,
+  output: { message: { id: string }; parts: Part[] },
+): Promise<void> {
+  const { sessionID, agentName, projectScope, client } = input;
+
+  if (shouldSkipSession(sessionID, agentName)) return;
 
   const userMessage = extractUserMessage(output.parts);
-  if (userMessage === null) return undefined;
+  if (userMessage === null) return;
 
   log("chat.message: processing", {
     messagePreview: userMessage.slice(0, CONTEXT_PREVIEW_LENGTH),
     partsCount: output.parts.length,
   });
 
-  if (injectedSessions.has(sessionID)) return undefined;
+  if (injectedSessions.has(sessionID)) return;
+
+  if (await hasExistingMessages(client, sessionID)) {
+    injectedSessions.add(sessionID);
+    log("chat.message: skipping injection for existing session", { sessionID });
+    return;
+  }
 
   injectedSessions.add(sessionID);
-  return fetchAndInjectContext(
+  await fetchAndInjectContext(
     { sessionID, messageID: output.message.id, userMessage, projectScope },
     output.parts,
   );
@@ -167,10 +188,8 @@ async function handleCompactedEvent(context: PluginContext, sessionID: string): 
       tags,
     });
   } catch (error) {
-    log("event: session compacted error", {
-      sessionID,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    const msg = error instanceof Error ? error.message : String(error);
+    log("event: session compacted error", { sessionID, error: msg });
     reportError(error, { context: "handleEvent:session.compacted", sessionID });
   }
 }
@@ -178,17 +197,10 @@ async function handleCompactedEvent(context: PluginContext, sessionID: string): 
 async function handleIdleEvent(context: PluginContext, sessionID: string): Promise<void> {
   try {
     const tags = await ensureTags(context);
-    await handleSessionIdle({
-      sessionID,
-      ctx: context.ctx,
-      directory: context.directory,
-      tags,
-    });
+    await handleSessionIdle({ sessionID, ctx: context.ctx, directory: context.directory, tags });
   } catch (error) {
-    log("event: conversation sync error", {
-      sessionID,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    const msg = error instanceof Error ? error.message : String(error);
+    log("event: conversation sync error", { sessionID, error: msg });
     reportError(error, { context: "handleEvent:session.idle", sessionID });
   }
 }
@@ -226,11 +238,7 @@ function initPlugin(ctx: PluginInput): InitResult {
   const { directory } = ctx;
   const projectScope = resolveProjectScope(directory);
 
-  log(`oc-solomemory v${version}`, {
-    directory,
-    projectScope,
-    configured: isConfigured(),
-  });
+  log(`oc-solomemory v${version}`, { directory, projectScope, configured: isConfigured() });
   void ctx.client.tui.showToast({
     body: { message: `oc-solomemory v${version}`, variant: "info" },
   });
@@ -254,7 +262,7 @@ export const SolomemoryPlugin: Plugin = async (ctx: PluginInput) => {
 
       try {
         await handleChatMessage(
-          { sessionID: input.sessionID, agentName: input.agent, projectScope },
+          { sessionID: input.sessionID, agentName: input.agent, projectScope, client: ctx.client },
           output,
         );
       } catch (error) {

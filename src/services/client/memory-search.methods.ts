@@ -11,12 +11,21 @@ import { reportError } from "../error-reporter.js";
 import { log } from "../logger.js";
 import { post } from "./api-transport.http.js";
 
+/** Server-side max_length for the q field in SearchRequest. */
+const MAX_SEARCH_QUERY_LENGTH = 2000;
+
+/** Truncate a query string to fit the server's max_length for search. */
+function truncateSearchQuery(query: string): string {
+  if (query.length <= MAX_SEARCH_QUERY_LENGTH) return query;
+  return query.slice(0, MAX_SEARCH_QUERY_LENGTH);
+}
+
 function buildSearchBody(
   query: string,
   options?: { metadataFilters?: MetadataFilter[]; limit?: number },
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
-    q: query,
+    q: truncateSearchQuery(query),
     limit: options?.limit ?? CONFIG.maxMemories,
   };
   const filters = options?.metadataFilters;
@@ -58,7 +67,7 @@ export async function searchUserMemories(
   log("searchUserMemories: start", { query });
   try {
     const result = await post("/search/user", {
-      q: query,
+      q: truncateSearchQuery(query),
       limit: options?.limit ?? CONFIG.maxMemories,
     });
     if (!isSearchResponse(result)) throw new Error("Invalid search response format");
