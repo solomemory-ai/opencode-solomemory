@@ -4,10 +4,8 @@ import path from "node:path";
 
 import { getConfigFile, saveApiKey as saveApiKeyToConfig } from "../config.js";
 import { stripJsoncComments } from "../services/jsonc.js";
-import { SOLOMEMORY_INIT_COMMAND, SOLOMEMORY_LOGIN_COMMAND } from "./templates.js";
 
 const OPENCODE_CONFIG_DIR = path.join(homedir(), ".config", "opencode");
-const OPENCODE_COMMAND_DIR = path.join(OPENCODE_CONFIG_DIR, "command");
 const JSON_INDENT_SPACES = 2;
 const SEPARATOR_WIDTH = 50;
 
@@ -140,18 +138,6 @@ function createNewConfig(): void {
   console.log(`✓ Created ${configPath}`);
 }
 
-function createCommands(): void {
-  mkdirSync(OPENCODE_COMMAND_DIR, { recursive: true });
-
-  const initPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-init.md");
-  writeFileSync(initPath, SOLOMEMORY_INIT_COMMAND);
-  console.log(`✓ Created /solomemory-init command`);
-
-  const loginPath = path.join(OPENCODE_COMMAND_DIR, "solomemory-login.md");
-  writeFileSync(loginPath, SOLOMEMORY_LOGIN_COMMAND);
-  console.log(`✓ Created /solomemory-login command`);
-}
-
 function stepRegisterPlugin(): void {
   console.log("Step 1: Register plugin in OpenCode config");
   const configPath = findOpencodeConfig();
@@ -161,11 +147,6 @@ function stepRegisterPlugin(): void {
   } else {
     addPluginToConfig(configPath);
   }
-}
-
-function stepCreateCommands(): void {
-  console.log("\nStep 2: Create /solomemory-init and /solomemory-login commands");
-  createCommands();
 }
 
 function printApiKeyRequired(): number {
@@ -187,7 +168,6 @@ function runInstall(apiKey: string): number {
   console.log("\n🧠 oc-solomemory installer\n");
 
   stepRegisterPlugin();
-  stepCreateCommands();
 
   console.log("\n" + "─".repeat(SEPARATOR_WIDTH));
   console.log("\n🔑 Final step: Configure API key\n");
