@@ -1,12 +1,20 @@
-import { appendFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-const LOG_FILE = path.join(homedir(), ".config", "opencode", "solomemory", "solomemory.log");
+const LOG_DIR = path.join(homedir(), ".config", "opencode", "solomemory");
+const LOG_FILE = path.join(LOG_DIR, "solomemory.log");
 
 const logQueue: string[] = [];
 let flushScheduled = false;
 let initialized = false;
+let dirEnsured = false;
+
+async function ensureLogDir(): Promise<void> {
+  if (dirEnsured) return;
+  await mkdir(LOG_DIR, { recursive: true });
+  dirEnsured = true;
+}
 
 async function flushLogs(): Promise<void> {
   if (logQueue.length === 0) {
@@ -18,6 +26,7 @@ async function flushLogs(): Promise<void> {
   const content = entries.join("");
 
   try {
+    await ensureLogDir();
     if (initialized) {
       await appendFile(LOG_FILE, content);
     } else {

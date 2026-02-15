@@ -1,6 +1,6 @@
 # Configuration
 
-Optional. Create `~/.config/opencode/solomemory.jsonc` to customize behavior:
+Optional. Create `~/.config/opencode/solomemory/config.json` to customize behavior:
 
 ```jsonc
 {
@@ -41,4 +41,4 @@ All options can be overridden via `SOLOMEMORY_*` env vars (highest priority):
 | `SOLOMEMORY_DUMP_INGEST` | `dumpIngestPayloads` | `SOLOMEMORY_DUMP_INGEST=true`    |
 | `SOLOMEMORY_DUMP_DIR`    | `dumpDir`            | `SOLOMEMORY_DUMP_DIR=~/my-dumps` |
 
-Resolution order: `SOLOMEMORY_*` env vars > `solomemory.jsonc` > `credentials.json` > defaults
+Resolution order: `SOLOMEMORY_*` env vars > `config.json` > `credentials.json` > defaults

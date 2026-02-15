@@ -168,12 +168,11 @@ Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.) for persistence.
 
 ## Option 2: Config File
 
-Create \`~/.config/opencode/solomemory.jsonc\`:
+Create \`~/.config/opencode/solomemory/config.json\`:
 
-\`\`\`jsonc
+\`\`\`json
 {
   "apiKey": "your-api-key",
-  // Optional: Custom API URL (default: https://api.solomemory.com)
   "apiUrl": "https://api.solomemory.com"
 }
 \`\`\`

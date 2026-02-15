@@ -3,13 +3,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import { loadCredentials } from "./services/auth.js";
-import { stripJsoncComments } from "./services/jsonc.js";
 
-const CONFIG_DIR = path.join(homedir(), ".config", "opencode");
-const CONFIG_FILES = [
-  path.join(CONFIG_DIR, "solomemory.jsonc"),
-  path.join(CONFIG_DIR, "solomemory.json"),
-];
+const CONFIG_DIR = path.join(homedir(), ".config", "opencode", "solomemory");
+const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 
 const DEFAULT_API_URL = "https://api.solomemory.com";
 
@@ -44,26 +40,17 @@ function isSolomemoryConfig(data: unknown): data is SolomemoryConfig {
   return typeof data === "object" && data !== null;
 }
 
-function tryLoadConfigFile(filePath: string): SolomemoryConfig | null {
-  if (!existsSync(filePath)) return null;
+function loadConfigFromFile(): SolomemoryConfig {
+  if (!existsSync(CONFIG_FILE)) return {};
 
   try {
-    const content = readFileSync(filePath, "utf8");
-    const json = stripJsoncComments(content);
-    const data: unknown = JSON.parse(json);
-    if (!isSolomemoryConfig(data)) return null;
+    const content = readFileSync(CONFIG_FILE, "utf8");
+    const data: unknown = JSON.parse(content);
+    if (!isSolomemoryConfig(data)) return {};
     return data;
   } catch {
-    return null;
+    return {};
   }
-}
-
-function loadConfigFromFile(): SolomemoryConfig {
-  for (const filePath of CONFIG_FILES) {
-    const config = tryLoadConfigFile(filePath);
-    if (config !== null) return config;
-  }
-  return {};
 }
 
 let _fileConfig: SolomemoryConfig | null = null;
