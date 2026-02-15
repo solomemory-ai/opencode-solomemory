@@ -2,7 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-const LOG_FILE = path.join(homedir(), ".opencode-solomemory.log");
+const LOG_FILE = path.join(homedir(), ".config", "opencode", "solomemory", "solomemory.log");
 
 const logQueue: string[] = [];
 let flushScheduled = false;

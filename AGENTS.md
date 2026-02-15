@@ -136,6 +136,6 @@ src/
 - **Bun** (not Node) -- ESNext target, bundler module resolution
 - Dual build targets: `src/index.ts` (plugin) -> `dist/index.js`, `src/cli.ts` -> `dist/cli.js`
 - Git ops via `execSync` (synchronous)
-- Logging: async batched file logger to `~/.opencode-solomemory.log`
-- Auth: Bearer token at `~/.solomemory-opencode/credentials.json` (0o600)
+- Logging: async batched file logger to `~/.config/opencode/solomemory/solomemory.log`
+- Auth: Bearer token at `~/.config/opencode/solomemory/credentials.json` (0o600)
 - Release: `scripts/release.sh {patch|minor|major}` -> git tag -> GitHub Actions -> npm

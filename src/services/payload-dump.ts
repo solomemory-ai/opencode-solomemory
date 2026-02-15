@@ -3,7 +3,7 @@
  * Writes each ingest request payload as a separate JSON file for offline testing / demo fixtures.
  * Enabled via `dumpIngestPayloads: true` in config or `SOLOMEMORY_DUMP_INGEST=true` env var.
  *
- * Files are written to `~/.solomemory-dumps/` with a timestamped filename:
+ * Files are written to `~/.config/opencode/solomemory/dumps/` with a timestamped filename:
  *   ingest_<ISO-timestamp>_<sourceId-suffix>.json
  */
 
@@ -15,7 +15,7 @@ import { CONFIG } from "../config.js";
 import type { IngestPayload } from "../services/client-types.js";
 import { log } from "../services/logger.js";
 
-const DEFAULT_DUMP_DIR = path.join(homedir(), ".solomemory-dumps");
+const DEFAULT_DUMP_DIR = path.join(homedir(), ".config", "opencode", "solomemory", "dumps");
 
 function resolveDumpDir(): string {
   const configured = CONFIG.dumpDir;
