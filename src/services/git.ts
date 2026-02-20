@@ -30,20 +30,32 @@ export function getGitEmail(): string | null {
 export function getGitRemoteOrigin(directory?: string): string | null {
   const origin = execGitCommand("git config --get remote.origin.url", directory);
   if (!origin) return null;
+  return normalizeGitUrl(origin);
+}
 
-  // Normalize git URLs to a canonical form
-  // - git@github.com:org/repo.git -> github.com/org/repo
-  // - https://github.com/org/repo.git -> github.com/org/repo
-  // - ssh://git@github.com/org/repo.git -> github.com/org/repo
-  const normalized = origin
+/**
+ * Normalize git URLs to a canonical form, stripping credentials.
+ * - git@github.com:org/repo.git           -> github.com/org/repo
+ * - https://github.com/org/repo.git       -> github.com/org/repo
+ * - ssh://git@github.com/org/repo.git     -> github.com/org/repo
+ * - https://user:token@host.com/org/repo  -> host.com/org/repo
+ * - https://oauth2/tok@host.com/org/repo  -> host.com/org/repo
+ */
+export function normalizeGitUrl(url: string): string {
+  const stripped = url
     .replace(/^git@/, "")
     .replace(/^https?:\/\//, "")
     .replace(/^ssh:\/\/git@/, "")
-    .replace(/^ssh:\/\//, "")
-    .replace(/\.git$/, "")
-    .replace(":", "/");
+    .replace(/^ssh:\/\//, "");
 
-  return normalized;
+  // Strip embedded credentials: everything up to the last @ is credentials.
+  // Handles user:pass@host, oauth2/token@host, and similar patterns.
+  // The @ character is not valid in hostnames, so the last @ always
+  // delimits credentials from the host portion.
+  const atIndex = stripped.lastIndexOf("@");
+  const withoutCredentials = atIndex === -1 ? stripped : stripped.slice(atIndex + 1);
+
+  return withoutCredentials.replace(/\.git$/, "").replace(":", "/");
 }
 
 export function getGitBranch(directory?: string): string | null {
